@@ -1,0 +1,26 @@
+# Cargo / Rust build target
+target/
+**/*.rs.bk
+Cargo.lock
+
+# IDEs and Editors
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Windows System Files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Output / logs / minidumps
+*.log
+*.dmp
+crashdumps/
+tmp/
+dist/
+bin/
