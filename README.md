@@ -75,8 +75,8 @@ taskbar-4x/
 
 ---
 
-## 🤝 Contribución y Créditos
+## ⚖️ Licencia y Propiedad
 
-Desarrollado y diseñado por **DOMINUSBABEL**. 
+**PROPIEDAD PRIVADA COMERCIAL DE BABYLON.IA S.A.S. - TODOS LOS DERECHOS RESERVADOS.**
 
-Para reportar fallos de producción o fugas de memoria en pruebas de integración, abra un *Issue* en este repositorio adjuntando el volcado minidump (`.dmp`) generado por el sistema de Sentry/Crashpad de la compilación.
+Este software, código fuente, activos y documentación asociada son propiedad exclusiva y confidencial de **BABYLON.IA S.A.S.** Queda estrictamente prohibida cualquier copia, distribución o uso no autorizado. Consulte el archivo [LICENSE](LICENSE) para más detalles.
