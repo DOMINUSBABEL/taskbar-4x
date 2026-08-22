@@ -12,7 +12,7 @@ use windows::{
 };
 
 use engine::state::GameState;
-use renderer::{DioramaRenderer, TacticalRenderer};
+use renderer::{DioramaRenderer, TacticalRenderer, MenuRenderer};
 use window::*;
 
 fn main() -> Result<()> {
@@ -33,27 +33,28 @@ fn main() -> Result<()> {
         let screen_w = GetSystemMetrics(SM_CXSCREEN);
         let screen_h = GetSystemMetrics(SM_CYSCREEN);
 
-        // Crear ventana inicial acoplada a la barra de tareas
+        // Crear ventana inicial a Pantalla Completa para el Menú y Configuración
         let hwnd = CreateWindowExW(
-            WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE,
+            WS_EX_APPWINDOW,
             window_class,
-            w!("TASK BAR 4X"),
+            w!("TASK BAR 4X - Imperivm Saeculorum"),
             WS_POPUP | WS_VISIBLE,
             0,
-            screen_h - APP_HEIGHT,
+            0,
             screen_w,
-            APP_HEIGHT,
+            screen_h,
             None,
             None,
             instance,
             None,
         )?;
 
-        // Inicializar contexto del juego
+        // Inicializar contexto del juego en estado Menú
         let ctx = WindowContext {
             hwnd,
-            mode: WindowMode::DockedAppBar,
+            app_state: AppState::InMenu,
             state: GameState::new(),
+            menu: MenuRenderer::new(),
             diorama: DioramaRenderer::new(),
             tactical: TacticalRenderer::new(),
             last_time: std::time::Instant::now(),
@@ -64,13 +65,13 @@ fn main() -> Result<()> {
             *global_lock = Some(Box::new(ctx));
         }
 
-        // Registrar como AppBar en el borde inferior
-        register_appbar(hwnd, true);
+        let _ = SetForegroundWindow(hwnd);
+        let _ = SetFocus(hwnd);
 
         // Registrar HotKey global Win + Alt + X
         let _ = RegisterHotKey(hwnd, HOTKEY_FS_ID, MOD_ALT | MOD_WIN, 0x58);
 
-        // Bucle de mensajes reactivo con WaitMessage() para consumo 0.0% CPU
+        // Bucle de mensajes reactivo con WaitMessage()
         let mut msg = MSG::default();
         while GetMessageW(&mut msg, None, 0, 0).into() {
             let _ = TranslateMessage(&msg);

@@ -1,8 +1,10 @@
 pub mod diorama;
 pub mod tactical;
+pub mod menu;
 
 pub use diorama::DioramaRenderer;
 pub use tactical::{TacticalRenderer, TacticalTab};
+pub use menu::{MenuRenderer, MenuScreen};
 
 use windows::Win32::Foundation::*;
 use windows::Win32::Graphics::Gdi::*;

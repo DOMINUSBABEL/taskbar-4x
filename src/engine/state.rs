@@ -128,12 +128,28 @@ pub struct GameState {
 
     // Meta-Progreso (Singularidad)
     pub singularity_dust: u32,
+
+    // Configuración Inicial
+    pub config: super::setup::GameConfig,
 }
 
 impl GameState {
     pub fn new() -> Self {
+        Self::new_with_config(super::setup::GameConfig::default())
+    }
+
+    pub fn new_with_config(config: super::setup::GameConfig) -> Self {
         let initial_era = EraId::Paleolithic;
         let era_techs = generate_era_technologies(initial_era);
+
+        let (civ_name, init_food, init_materials, init_gold) = match config.civ {
+            super::setup::CivilizationChoice::Egypt => ("Asentamiento del Nilo", 70.0, 30.0, 15.0),
+            super::setup::CivilizationChoice::Greece => ("Acrópolis Primigenia", 40.0, 30.0, 25.0),
+            super::setup::CivilizationChoice::Rome => ("Colina Palatina", 50.0, 45.0, 20.0),
+            super::setup::CivilizationChoice::Babylon => ("Jardín de Eufrates", 60.0, 35.0, 20.0),
+            super::setup::CivilizationChoice::Dynastic => ("Valle del Río Amarillo", 65.0, 40.0, 15.0),
+            super::setup::CivilizationChoice::Norse => ("Fiordo Ancestral", 45.0, 50.0, 10.0),
+        };
 
         let provinces = vec![
             Province { id: 0, name: "Valle del Fuego Central".to_string(), biome: BiomeType::River, is_colonized: true, is_hostile: false, garrison_strength: 10, development_level: 1, x: 0.25, y: 0.45 },
@@ -148,7 +164,7 @@ impl GameState {
 
         let capital_city = City {
             id: 0,
-            name: "Asentamiento Primigenio".to_string(),
+            name: civ_name.to_string(),
             province_id: 0,
             population: 15,
             buildings: vec![BuildingType::Hearth],
@@ -157,9 +173,9 @@ impl GameState {
 
         let initial_army = Army {
             id: 1,
-            name: "Patrulla de Exploradores".to_string(),
+            name: "Vanguardia de Exploración".to_string(),
             unit_type: UnitType::PaleoHunter,
-            count: 3,
+            count: 4,
             province_id: 0,
             target_province_id: None,
             march_progress: 0.0,
@@ -179,14 +195,14 @@ impl GameState {
             current_era: initial_era,
             year: 1,
             epoch_time: 0.0,
-            food: 40.0,
-            materials: 30.0,
-            gold: 10.0,
-            faith: 5.0,
-            philosophy: 2.0,
-            culture: 1.0,
+            food: init_food,
+            materials: init_materials,
+            gold: init_gold,
+            faith: 10.0,
+            philosophy: 5.0,
+            culture: 3.0,
             science: 0.0,
-            military_power: 15.0,
+            military_power: 20.0,
 
             food_rate: 2.5,
             materials_rate: 2.0,
@@ -212,8 +228,9 @@ impl GameState {
             expedition_progress: 0.0,
             current_frontier_node: 0,
             active_crisis: None,
-            event_log: vec!["El Clan Primigenio enciende la primera hoguera.".to_string()],
+            event_log: vec![format!("¡Fundada la civilización {} bajo el mando de {}!", config.civ.name(), config.leader.name())],
             singularity_dust: 0,
+            config,
         }
     }
 
