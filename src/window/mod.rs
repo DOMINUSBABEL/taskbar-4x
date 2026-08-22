@@ -147,6 +147,8 @@ pub unsafe extern "system" fn wnd_proc(
                         ctx.last_time = now;
                         if ctx.app_state == AppState::PlayingBarWidget {
                             ctx.diorama.update(dt);
+                        } else if ctx.app_state == AppState::PlayingTactical {
+                            ctx.tactical.update(dt);
                         }
                     }
                     let _ = InvalidateRect(hwnd, None, FALSE);
@@ -426,8 +428,8 @@ pub unsafe extern "system" fn wnd_proc(
                 let old_bmp = SelectObject(mem_dc, mem_bitmap);
 
                 {
-                    let ctx_lock = GLOBAL_CTX.lock().unwrap();
-                    if let Some(ctx) = ctx_lock.as_ref() {
+                    let mut ctx_lock = GLOBAL_CTX.lock().unwrap();
+                    if let Some(ctx) = ctx_lock.as_mut() {
                         match ctx.app_state {
                             AppState::InMenu => {
                                 ctx.menu.render(mem_dc, &rect);
