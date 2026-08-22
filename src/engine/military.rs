@@ -1,249 +1,64 @@
-use super::eras::EraId;
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum UnitType {
-    // Eras 1-3
-    PaleoHunter,         // Cazador con Lanza (Piedra)
-    NeolithicSlinger,    // Hondero Neolítico
-    CopperSpearman,      // Lancero del Cobre
-
-    // Eras 4-6
-    BronzeChariot,       // Carro de Guerra de Bronce
-    BronzePhalanx,       // Falange Imperial
-    RomanLegionary,      // Legionario Clásico
-    Cataphract,          // Catafracta Blindado
-
-    // Eras 7-8
-    FeudalKnight,        // Caballero con Cota y Lanza
-    GothicCrossbowman,   // Ballestero de Gremios
-
-    // Eras 9-11
-    RenaissanceCaravel,  // Carabela Armada
-    LineMusketeer,       // Fusilero de Línea Ilustrado
-    SteamIronclad,       // Acorazado a Vapor
-    FieldArtillery,      // Batería de Artillería
-
-    // Eras 12-15
-    BattleTank,          // Tanque de Batalla Blindado
-    SupersonicJet,       // Caza Supersónico
-    OrbitalFrigate,      // Fragata Orbital
-    DysonCruiser,        // Crucero de Antimateria
-    QuantumAvatar,       // Avatar de Conciencia Cuántica
+    // Eras Primitivas
+    PaleoHunter,
+    Spearman,
+    Chariot,
+    
+    // Eras Clásicas y Medievales (Imperium / Cossacks)
+    Legionary,
+    PhalanxHoplite,
+    Knight,
+    Longbowman,
+    
+    // Eras Renacimiento e Ilustración (Cossacks 3 style)
+    Musketeer,
+    Pikeman,
+    HussarCavalry,
+    FieldCannon,
+    
+    // Eras Modernas y Futuras (Empire Earth / Dune)
+    RiflemanInfantry,
+    SteamIronclad,
+    BattleTank,
+    FighterJet,
+    DreadnoughtShip,
+    OrbitalCruiser,
+    QuantumMech,
 }
 
 #[derive(Debug, Clone)]
 pub struct UnitDef {
-    pub unit_type: UnitType,
     pub name: &'static str,
-    pub era_required: EraId,
-    pub attack_power: u32,
-    pub defense_power: u32,
-    pub speed: f32, // Velocidad de marcha en nodos/segundo
-    pub food_upkeep: u32,
-    pub gold_upkeep: u32,
-    pub production_cost: u32,
+    pub food_cost: u32,
+    pub material_cost: u32,
+    pub attack: u32,
+    pub defense: u32,
+    pub max_hp: f32,
+    pub speed: f32,
+    pub era_index: usize,
 }
 
-pub fn get_unit_definition(u_type: UnitType) -> UnitDef {
-    match u_type {
-        UnitType::PaleoHunter => UnitDef {
-            unit_type: u_type,
-            name: "Cazador Tribal con Lanza",
-            era_required: EraId::Paleolithic,
-            attack_power: 5,
-            defense_power: 3,
-            speed: 1.0,
-            food_upkeep: 1,
-            gold_upkeep: 0,
-            production_cost: 15,
-        },
-        UnitType::NeolithicSlinger => UnitDef {
-            unit_type: u_type,
-            name: "Hondero Neolítico",
-            era_required: EraId::Neolithic,
-            attack_power: 8,
-            defense_power: 4,
-            speed: 1.2,
-            food_upkeep: 1,
-            gold_upkeep: 0,
-            production_cost: 20,
-        },
-        UnitType::CopperSpearman => UnitDef {
-            unit_type: u_type,
-            name: "Lancero del Calcolítico",
-            era_required: EraId::Chalcolithic,
-            attack_power: 12,
-            defense_power: 10,
-            speed: 1.0,
-            food_upkeep: 2,
-            gold_upkeep: 0,
-            production_cost: 35,
-        },
-        UnitType::BronzeChariot => UnitDef {
-            unit_type: u_type,
-            name: "Carro de Guerra de Bronce",
-            era_required: EraId::BronzeAge,
-            attack_power: 24,
-            defense_power: 12,
-            speed: 2.2,
-            food_upkeep: 3,
-            gold_upkeep: 2,
-            production_cost: 60,
-        },
-        UnitType::BronzePhalanx => UnitDef {
-            unit_type: u_type,
-            name: "Falange de Bronce",
-            era_required: EraId::BronzeAge,
-            attack_power: 18,
-            defense_power: 25,
-            speed: 0.8,
-            food_upkeep: 3,
-            gold_upkeep: 1,
-            production_cost: 55,
-        },
-        UnitType::RomanLegionary => UnitDef {
-            unit_type: u_type,
-            name: "Legionario del Hierro",
-            era_required: EraId::IronAge,
-            attack_power: 32,
-            defense_power: 30,
-            speed: 1.2,
-            food_upkeep: 4,
-            gold_upkeep: 3,
-            production_cost: 80,
-        },
-        UnitType::Cataphract => UnitDef {
-            unit_type: u_type,
-            name: "Catafracta de Élite",
-            era_required: EraId::LateAntiquity,
-            attack_power: 45,
-            defense_power: 38,
-            speed: 1.8,
-            food_upkeep: 5,
-            gold_upkeep: 5,
-            production_cost: 110,
-        },
-        UnitType::FeudalKnight => UnitDef {
-            unit_type: u_type,
-            name: "Caballero Medieval de Cota",
-            era_required: EraId::EarlyMiddleAges,
-            attack_power: 58,
-            defense_power: 50,
-            speed: 1.6,
-            food_upkeep: 6,
-            gold_upkeep: 6,
-            production_cost: 140,
-        },
-        UnitType::GothicCrossbowman => UnitDef {
-            unit_type: u_type,
-            name: "Ballestero de Gremios",
-            era_required: EraId::LateMiddleAges,
-            attack_power: 50,
-            defense_power: 35,
-            speed: 1.0,
-            food_upkeep: 4,
-            gold_upkeep: 4,
-            production_cost: 120,
-        },
-        UnitType::RenaissanceCaravel => UnitDef {
-            unit_type: u_type,
-            name: "Carabela de Cañones",
-            era_required: EraId::Renaissance,
-            attack_power: 80,
-            defense_power: 65,
-            speed: 2.0,
-            food_upkeep: 6,
-            gold_upkeep: 10,
-            production_cost: 200,
-        },
-        UnitType::LineMusketeer => UnitDef {
-            unit_type: u_type,
-            name: "Fusilero de Línea",
-            era_required: EraId::Enlightenment,
-            attack_power: 95,
-            defense_power: 70,
-            speed: 1.3,
-            food_upkeep: 6,
-            gold_upkeep: 8,
-            production_cost: 220,
-        },
-        UnitType::SteamIronclad => UnitDef {
-            unit_type: u_type,
-            name: "Acorazado Blindado a Vapor",
-            era_required: EraId::Industrial,
-            attack_power: 160,
-            defense_power: 180,
-            speed: 1.8,
-            food_upkeep: 8,
-            gold_upkeep: 20,
-            production_cost: 450,
-        },
-        UnitType::FieldArtillery => UnitDef {
-            unit_type: u_type,
-            name: "Artillería Pesada Industrial",
-            era_required: EraId::Industrial,
-            attack_power: 200,
-            defense_power: 80,
-            speed: 0.9,
-            food_upkeep: 8,
-            gold_upkeep: 18,
-            production_cost: 400,
-        },
-        UnitType::BattleTank => UnitDef {
-            unit_type: u_type,
-            name: "División Acorazada de Tanques",
-            era_required: EraId::Atomic,
-            attack_power: 320,
-            defense_power: 300,
-            speed: 2.5,
-            food_upkeep: 10,
-            gold_upkeep: 35,
-            production_cost: 750,
-        },
-        UnitType::SupersonicJet => UnitDef {
-            unit_type: u_type,
-            name: "Escuadrón Caza Supersónico",
-            era_required: EraId::Atomic,
-            attack_power: 450,
-            defense_power: 150,
-            speed: 5.0,
-            food_upkeep: 10,
-            gold_upkeep: 50,
-            production_cost: 900,
-        },
-        UnitType::OrbitalFrigate => UnitDef {
-            unit_type: u_type,
-            name: "Fragata de Asalto Orbital",
-            era_required: EraId::SolarExpansion,
-            attack_power: 700,
-            defense_power: 600,
-            speed: 4.0,
-            food_upkeep: 15,
-            gold_upkeep: 100,
-            production_cost: 1600,
-        },
-        UnitType::DysonCruiser => UnitDef {
-            unit_type: u_type,
-            name: "Crucero Estelar de Antimateria",
-            era_required: EraId::Interstellar,
-            attack_power: 1800,
-            defense_power: 1500,
-            speed: 8.0,
-            food_upkeep: 25,
-            gold_upkeep: 300,
-            production_cost: 4000,
-        },
-        UnitType::QuantumAvatar => UnitDef {
-            unit_type: u_type,
-            name: "Avatar Cuántico Trascendente",
-            era_required: EraId::Singularity,
-            attack_power: 5000,
-            defense_power: 5000,
-            speed: 10.0,
-            food_upkeep: 0,
-            gold_upkeep: 0,
-            production_cost: 10000,
-        },
+pub fn get_unit_definition(unit: UnitType) -> UnitDef {
+    match unit {
+        UnitType::PaleoHunter => UnitDef { name: "Cazador con Lanza", food_cost: 15, material_cost: 10, attack: 4, defense: 2, max_hp: 50.0, speed: 1.2, era_index: 0 },
+        UnitType::Spearman => UnitDef { name: "Lancero Tribal", food_cost: 20, material_cost: 15, attack: 6, defense: 5, max_hp: 70.0, speed: 1.0, era_index: 1 },
+        UnitType::Chariot => UnitDef { name: "Carro de Guerra de Bronce", food_cost: 40, material_cost: 35, attack: 14, defense: 8, max_hp: 120.0, speed: 1.8, era_index: 3 },
+        UnitType::Legionary => UnitDef { name: "Legionario Romano", food_cost: 35, material_cost: 40, attack: 18, defense: 16, max_hp: 150.0, speed: 1.1, era_index: 4 },
+        UnitType::PhalanxHoplite => UnitDef { name: "Falange Hoplita", food_cost: 30, material_cost: 45, attack: 16, defense: 20, max_hp: 160.0, speed: 0.9, era_index: 4 },
+        UnitType::Knight => UnitDef { name: "Caballero Feudal Montado", food_cost: 60, material_cost: 70, attack: 28, defense: 22, max_hp: 220.0, speed: 1.6, era_index: 7 },
+        UnitType::Longbowman => UnitDef { name: "Arquero de Arco Largo", food_cost: 25, material_cost: 35, attack: 22, defense: 10, max_hp: 90.0, speed: 1.2, era_index: 7 },
+        UnitType::Musketeer => UnitDef { name: "Mosquetero de Línea", food_cost: 40, material_cost: 60, attack: 38, defense: 18, max_hp: 140.0, speed: 1.1, era_index: 9 },
+        UnitType::Pikeman => UnitDef { name: "Piquero de Formación", food_cost: 30, material_cost: 50, attack: 24, defense: 30, max_hp: 180.0, speed: 1.0, era_index: 9 },
+        UnitType::HussarCavalry => UnitDef { name: "Húsar Alado", food_cost: 65, material_cost: 80, attack: 45, defense: 25, max_hp: 240.0, speed: 2.0, era_index: 9 },
+        UnitType::FieldCannon => UnitDef { name: "Cañón de Asedio", food_cost: 30, material_cost: 120, attack: 65, defense: 15, max_hp: 160.0, speed: 0.7, era_index: 10 },
+        UnitType::RiflemanInfantry => UnitDef { name: "Infantería con Fusil", food_cost: 50, material_cost: 80, attack: 55, defense: 35, max_hp: 200.0, speed: 1.3, era_index: 10 },
+        UnitType::SteamIronclad => UnitDef { name: "Acorazado de Vapor", food_cost: 80, material_cost: 250, attack: 110, defense: 85, max_hp: 500.0, speed: 1.2, era_index: 10 },
+        UnitType::BattleTank => UnitDef { name: "Tanque Blindado", food_cost: 80, material_cost: 220, attack: 130, defense: 95, max_hp: 450.0, speed: 1.5, era_index: 11 },
+        UnitType::FighterJet => UnitDef { name: "Caza Supersónico", food_cost: 60, material_cost: 300, attack: 160, defense: 60, max_hp: 280.0, speed: 3.5, era_index: 11 },
+        UnitType::DreadnoughtShip => UnitDef { name: "Dreadnought Nuclear", food_cost: 100, material_cost: 500, attack: 280, defense: 200, max_hp: 900.0, speed: 1.4, era_index: 12 },
+        UnitType::OrbitalCruiser => UnitDef { name: "Crucero Orbital", food_cost: 200, material_cost: 1200, attack: 600, defense: 450, max_hp: 2000.0, speed: 2.5, era_index: 13 },
+        UnitType::QuantumMech => UnitDef { name: "Titán Cuántico", food_cost: 500, material_cost: 3000, attack: 1800, defense: 1400, max_hp: 6000.0, speed: 3.0, era_index: 14 },
     }
 }
 
@@ -253,14 +68,43 @@ pub struct Army {
     pub name: String,
     pub unit_type: UnitType,
     pub count: u32,
-    pub province_id: usize,
+    pub hp: f32,
+    pub max_hp: f32,
+    pub current_province_id: usize,
     pub target_province_id: Option<usize>,
-    pub march_progress: f32, // 0.0 a 1.0
+    pub world_x: f32,
+    pub world_y: f32,
+    pub target_x: f32,
+    pub target_y: f32,
+    pub is_moving: bool,
+    pub in_combat: bool,
 }
 
 impl Army {
+    pub fn new(id: u32, name: String, unit_type: UnitType, count: u32, province_id: usize, x: f32, y: f32) -> Self {
+        let def = get_unit_definition(unit_type);
+        let total_hp = def.max_hp * count as f32;
+        Self {
+            id,
+            name,
+            unit_type,
+            count,
+            hp: total_hp,
+            max_hp: total_hp,
+            current_province_id: province_id,
+            target_province_id: None,
+            world_x: x,
+            world_y: y,
+            target_x: x,
+            target_y: y,
+            is_moving: false,
+            in_combat: false,
+        }
+    }
+
     pub fn combat_power(&self) -> u32 {
         let def = get_unit_definition(self.unit_type);
-        (def.attack_power + def.defense_power) * self.count
+        let hp_ratio = (self.hp / self.max_hp.max(1.0)).clamp(0.1, 1.0);
+        ((def.attack + def.defense) as f32 * self.count as f32 * hp_ratio) as u32
     }
 }

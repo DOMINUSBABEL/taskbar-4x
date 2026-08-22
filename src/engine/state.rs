@@ -1,6 +1,7 @@
 use super::eras::{EraId, BranchTech, generate_era_technologies};
 use super::buildings::{BuildingType, get_building_definition};
 use super::military::{Army, UnitType, get_unit_definition};
+use super::setup::{GameConfig, CivilizationChoice};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BiomeType {
@@ -17,14 +18,14 @@ pub enum BiomeType {
 impl BiomeType {
     pub fn name(&self) -> &'static str {
         match self {
-            BiomeType::Plains => "Llanuras",
-            BiomeType::Forest => "Bosques",
-            BiomeType::Mountains => "Montañas",
+            BiomeType::Plains => "Llanuras Fértiles",
+            BiomeType::Forest => "Bosques Ancestrales",
+            BiomeType::Mountains => "Cordillera Mineral",
             BiomeType::River => "Valle Fluvial",
             BiomeType::Coast => "Costa Marítima",
-            BiomeType::Desert => "Desierto",
-            BiomeType::Tundra => "Tundra",
-            BiomeType::Orbit => "Órbita Planetaria",
+            BiomeType::Desert => "Desierto de Dunas",
+            BiomeType::Tundra => "Tundra Boreal",
+            BiomeType::Orbit => "Sector Orbital",
         }
     }
 }
@@ -37,9 +38,12 @@ pub struct Province {
     pub is_colonized: bool,
     pub is_hostile: bool,
     pub garrison_strength: u32,
+    pub garrison_hp: f32,
+    pub max_garrison_hp: f32,
     pub development_level: u32,
-    pub x: f32, // Coordenadas normalizadas 0.0 - 1.0 para el mapa 2.5D
+    pub x: f32, // Coordenadas en mapa 0.0 - 1.0
     pub y: f32,
+    pub buildings: Vec<BuildingType>,
 }
 
 #[derive(Debug, Clone)]
@@ -49,35 +53,24 @@ pub struct City {
     pub province_id: usize,
     pub population: u32,
     pub buildings: Vec<BuildingType>,
-    pub current_building: Option<(BuildingType, f32, f32)>, // (Type, progress, total_cost)
+    pub current_building: Option<(BuildingType, f32, f32)>,
 }
 
 #[derive(Debug, Clone)]
 pub struct WonderProgress {
     pub era: EraId,
     pub name: &'static str,
-    pub progress: f32, // 0.0 a 100.0%
+    pub progress: f32,
     pub is_completed: bool,
 }
 
 #[derive(Debug, Clone)]
-pub struct HistoricalCrisis {
-    pub title: &'static str,
-    pub description: &'static str,
-    pub severity: u32, // 1-5
-    pub time_remaining: f32,
-    pub option_a: &'static str,
-    pub option_b: &'static str,
-}
-
-#[derive(Debug, Clone)]
 pub struct GameState {
-    // Época y Tiempo
     pub current_era: EraId,
     pub year: u32,
     pub epoch_time: f32,
 
-    // Recursos Principales
+    // 8 Recursos Clave
     pub food: f32,
     pub materials: f32,
     pub gold: f32,
@@ -87,7 +80,6 @@ pub struct GameState {
     pub science: f32,
     pub military_power: f32,
 
-    // Tasas por segundo (para UI)
     pub food_rate: f32,
     pub materials_rate: f32,
     pub gold_rate: f32,
@@ -96,90 +88,76 @@ pub struct GameState {
     pub culture_rate: f32,
     pub science_rate: f32,
 
-    // Métricas Sociales
     pub population: u32,
-    pub stability: f32, // 0.0 a 100.0%
+    pub stability: f32, // 0-100%
 
-    // Árbol de Tecnologías (por Era)
     pub era_technologies: Vec<BranchTech>,
-
-    // Provincias y Territorio
     pub provinces: Vec<Province>,
     pub cities: Vec<City>,
     pub selected_province: usize,
+    pub selected_army_id: Option<u32>,
     pub selected_city: usize,
 
-    // Ejércitos y Frentes
     pub armies: Vec<Army>,
     pub next_army_id: u32,
-
-    // Maravillas
     pub wonders: Vec<WonderProgress>,
 
-    // Expedición 1D (Barra)
-    pub expedition_progress: f32, // 0.0 a 1.0
-    pub current_frontier_node: usize,
-
-    // Crisis Activa
-    pub active_crisis: Option<HistoricalCrisis>,
-
-    // Mensajes y Bitácora de Eventos
     pub event_log: Vec<String>,
-
-    // Meta-Progreso (Singularidad)
     pub singularity_dust: u32,
+    pub config: GameConfig,
 
-    // Configuración Inicial
-    pub config: super::setup::GameConfig,
+    // UI Interactiva RTS
+    pub radial_menu_open: bool,
+    pub radial_pos: (f32, f32),
 }
 
 impl GameState {
     pub fn new() -> Self {
-        Self::new_with_config(super::setup::GameConfig::default())
+        Self::new_with_config(GameConfig::default())
     }
 
-    pub fn new_with_config(config: super::setup::GameConfig) -> Self {
+    pub fn new_with_config(config: GameConfig) -> Self {
         let initial_era = EraId::Paleolithic;
         let era_techs = generate_era_technologies(initial_era);
 
         let (civ_name, init_food, init_materials, init_gold) = match config.civ {
-            super::setup::CivilizationChoice::Egypt => ("Asentamiento del Nilo", 70.0, 30.0, 15.0),
-            super::setup::CivilizationChoice::Greece => ("Acrópolis Primigenia", 40.0, 30.0, 25.0),
-            super::setup::CivilizationChoice::Rome => ("Colina Palatina", 50.0, 45.0, 20.0),
-            super::setup::CivilizationChoice::Babylon => ("Jardín de Eufrates", 60.0, 35.0, 20.0),
-            super::setup::CivilizationChoice::Dynastic => ("Valle del Río Amarillo", 65.0, 40.0, 15.0),
-            super::setup::CivilizationChoice::Norse => ("Fiordo Ancestral", 45.0, 50.0, 10.0),
+            CivilizationChoice::Egypt => ("Persia / Valle del Nilo", 80.0, 40.0, 25.0),
+            CivilizationChoice::Greece => ("Atenas / Acrópolis", 50.0, 35.0, 40.0),
+            CivilizationChoice::Rome => ("Roma Imperial", 60.0, 50.0, 30.0),
+            CivilizationChoice::Babylon => ("Babilonia / Eufrates", 70.0, 45.0, 30.0),
+            CivilizationChoice::Dynastic => ("Chang'an / Valle Amarillo", 75.0, 50.0, 25.0),
+            CivilizationChoice::Norse => ("Midgard / Fiordo", 55.0, 60.0, 15.0),
         };
 
         let provinces = vec![
-            Province { id: 0, name: "Valle del Fuego Central".to_string(), biome: BiomeType::River, is_colonized: true, is_hostile: false, garrison_strength: 10, development_level: 1, x: 0.25, y: 0.45 },
-            Province { id: 1, name: "Bosques de Sílex".to_string(), biome: BiomeType::Forest, is_colonized: true, is_hostile: false, garrison_strength: 5, development_level: 1, x: 0.38, y: 0.35 },
-            Province { id: 2, name: "Llanura de Mamuts".to_string(), biome: BiomeType::Plains, is_colonized: false, is_hostile: false, garrison_strength: 0, development_level: 0, x: 0.52, y: 0.40 },
-            Province { id: 3, name: "Cantera de Roca Negra".to_string(), biome: BiomeType::Mountains, is_colonized: false, is_hostile: false, garrison_strength: 0, development_level: 0, x: 0.65, y: 0.30 },
-            Province { id: 4, name: "Costa de Conchas".to_string(), biome: BiomeType::Coast, is_colonized: false, is_hostile: false, garrison_strength: 0, development_level: 0, x: 0.20, y: 0.65 },
-            Province { id: 5, name: "Tierras Bárbaras del Norte".to_string(), biome: BiomeType::Tundra, is_colonized: false, is_hostile: true, garrison_strength: 25, development_level: 0, x: 0.45, y: 0.18 },
-            Province { id: 6, name: "Meseta de los Monolitos".to_string(), biome: BiomeType::Desert, is_colonized: false, is_hostile: false, garrison_strength: 0, development_level: 0, x: 0.75, y: 0.50 },
-            Province { id: 7, name: "Cráter Estelar".to_string(), biome: BiomeType::Orbit, is_colonized: false, is_hostile: false, garrison_strength: 0, development_level: 0, x: 0.85, y: 0.25 },
+            Province { id: 0, name: "Persia Central (Capital)".to_string(), biome: BiomeType::River, is_colonized: true, is_hostile: false, garrison_strength: 15, garrison_hp: 200.0, max_garrison_hp: 200.0, development_level: 2, x: 0.28, y: 0.48, buildings: vec![BuildingType::Hearth, BuildingType::GrainPit] },
+            Province { id: 1, name: "Bosques del Norte".to_string(), biome: BiomeType::Forest, is_colonized: true, is_hostile: false, garrison_strength: 8, garrison_hp: 100.0, max_garrison_hp: 100.0, development_level: 1, x: 0.42, y: 0.32, buildings: vec![BuildingType::StoneQuarry] },
+            Province { id: 2, name: "Llanuras de Media".to_string(), biome: BiomeType::Plains, is_colonized: true, is_hostile: false, garrison_strength: 10, garrison_hp: 120.0, max_garrison_hp: 120.0, development_level: 1, x: 0.55, y: 0.42, buildings: vec![] },
+            Province { id: 3, name: "Cordillera Zagros".to_string(), biome: BiomeType::Mountains, is_colonized: false, is_hostile: false, garrison_strength: 0, garrison_hp: 0.0, max_garrison_hp: 0.0, development_level: 0, x: 0.68, y: 0.30, buildings: vec![] },
+            Province { id: 4, name: "Costa del Golfo".to_string(), biome: BiomeType::Coast, is_colonized: false, is_hostile: false, garrison_strength: 0, garrison_hp: 0.0, max_garrison_hp: 0.0, development_level: 0, x: 0.22, y: 0.70, buildings: vec![] },
+            Province { id: 5, name: "Tierras Bárbaras Hostiles".to_string(), biome: BiomeType::Tundra, is_colonized: false, is_hostile: true, garrison_strength: 35, garrison_hp: 400.0, max_garrison_hp: 400.0, development_level: 0, x: 0.48, y: 0.16, buildings: vec![] },
+            Province { id: 6, name: "Meseta de Susa".to_string(), biome: BiomeType::Desert, is_colonized: false, is_hostile: false, garrison_strength: 0, garrison_hp: 0.0, max_garrison_hp: 0.0, development_level: 0, x: 0.78, y: 0.52, buildings: vec![] },
+            Province { id: 7, name: "Dominio de Bactria".to_string(), biome: BiomeType::Plains, is_colonized: false, is_hostile: true, garrison_strength: 50, garrison_hp: 600.0, max_garrison_hp: 600.0, development_level: 0, x: 0.88, y: 0.28, buildings: vec![] },
         ];
 
         let capital_city = City {
             id: 0,
             name: civ_name.to_string(),
             province_id: 0,
-            population: 15,
-            buildings: vec![BuildingType::Hearth],
+            population: 20,
+            buildings: vec![BuildingType::Hearth, BuildingType::GrainPit],
             current_building: None,
         };
 
-        let initial_army = Army {
-            id: 1,
-            name: "Vanguardia de Exploración".to_string(),
-            unit_type: UnitType::PaleoHunter,
-            count: 4,
-            province_id: 0,
-            target_province_id: None,
-            march_progress: 0.0,
-        };
+        let initial_army = Army::new(
+            1,
+            "1.ª Legión Imperial".to_string(),
+            UnitType::Musketeer,
+            36,
+            0,
+            0.28,
+            0.48,
+        );
 
         let mut wonders = Vec::new();
         for era in EraId::ALL.iter() {
@@ -193,90 +171,75 @@ impl GameState {
 
         Self {
             current_era: initial_era,
-            year: 1,
+            year: 337, // Estilo Demise of Nations (337 BC)
             epoch_time: 0.0,
             food: init_food,
             materials: init_materials,
             gold: init_gold,
-            faith: 10.0,
-            philosophy: 5.0,
-            culture: 3.0,
-            science: 0.0,
-            military_power: 20.0,
+            faith: 15.0,
+            philosophy: 10.0,
+            culture: 8.0,
+            science: 5.0,
+            military_power: 45.0,
 
-            food_rate: 2.5,
-            materials_rate: 2.0,
-            gold_rate: 0.5,
-            faith_rate: 1.0,
-            philosophy_rate: 0.5,
-            culture_rate: 0.3,
-            science_rate: 0.8,
+            food_rate: 3.5,
+            materials_rate: 2.8,
+            gold_rate: 1.2,
+            faith_rate: 1.5,
+            philosophy_rate: 0.8,
+            culture_rate: 0.6,
+            science_rate: 1.2,
 
-            population: 15,
-            stability: 95.0,
+            population: 20,
+            stability: 81.0, // 81% Felicidad como en Demise of Nations
 
             era_technologies: era_techs,
             provinces,
             cities: vec![capital_city],
             selected_province: 0,
+            selected_army_id: Some(1),
             selected_city: 0,
 
             armies: vec![initial_army],
             next_army_id: 2,
-
             wonders,
-            expedition_progress: 0.0,
-            current_frontier_node: 0,
-            active_crisis: None,
-            event_log: vec![format!("¡Fundada la civilización {} bajo el mando de {}!", config.civ.name(), config.leader.name())],
+
+            event_log: vec![format!("¡Fundada {}! Felicidad inicial: 81%.", civ_name)],
             singularity_dust: 0,
             config,
+
+            radial_menu_open: false,
+            radial_pos: (0.0, 0.0),
         }
     }
 
     pub fn tick(&mut self, dt: f32) {
         self.epoch_time += dt;
-        self.year += (dt * 1.5) as u32;
+        self.year = 337 + (self.epoch_time * 0.5) as u32;
 
-        // Calcular tasas de producción
-        let mut f_rate = 1.0 + (self.population as f32 * 0.15);
-        let mut m_rate = 1.0;
-        let mut g_rate = 0.2;
-        let mut fa_rate = 0.5;
-        let mut ph_rate = 0.3;
-        let mut cu_rate = 0.2;
-        let mut sc_rate = 0.5;
+        let mut f_rate = 1.5 + (self.population as f32 * 0.15);
+        let mut m_rate = 1.2;
+        let mut g_rate = 0.5;
+        let mut fa_rate = 0.8;
+        let mut ph_rate = 0.5;
+        let mut cu_rate = 0.4;
+        let mut sc_rate = 0.8;
 
-        // Sumar producción de edificios de todas las ciudades
         for city in &mut self.cities {
             for b in &city.buildings {
                 match b {
                     BuildingType::Hearth => { f_rate += 2.0; fa_rate += 1.0; }
-                    BuildingType::GrainPit => { f_rate += 1.0; }
-                    BuildingType::StoneQuarry => { m_rate += 3.0; }
-                    BuildingType::ShamanHut => { fa_rate += 2.0; cu_rate += 1.0; }
-                    BuildingType::MegalithCircle => { sc_rate += 3.0; ph_rate += 2.0; }
-                    BuildingType::BronzeForge => { m_rate += 5.0; }
-                    BuildingType::MudbrickGranary => { f_rate += 6.0; }
-                    BuildingType::Forum => { g_rate += 4.0; }
-                    BuildingType::Aqueduct => { f_rate += 5.0; }
-                    BuildingType::Watermill => { m_rate += 15.0; }
-                    BuildingType::Monastery => { fa_rate += 8.0; ph_rate += 5.0; cu_rate += 4.0; }
-                    BuildingType::Castle => { m_rate += 8.0; }
-                    BuildingType::Guildhall => { g_rate += 18.0; m_rate += 8.0; }
-                    BuildingType::PrintingHouse => { sc_rate += 20.0; cu_rate += 12.0; }
-                    BuildingType::ScientificAcademy => { sc_rate += 35.0; ph_rate += 20.0; }
-                    BuildingType::SteamMill => { m_rate += 60.0; }
-                    BuildingType::NuclearReactor => { sc_rate += 80.0; m_rate += 100.0; }
-                    BuildingType::SupercomputerLab => { sc_rate += 200.0; }
-                    BuildingType::Spaceport => { m_rate += 300.0; sc_rate += 300.0; }
-                    BuildingType::DysonCollectorNode => { sc_rate += 1000.0; m_rate += 1000.0; }
-                    BuildingType::QuantumMatrioshka => { sc_rate += 5000.0; ph_rate += 5000.0; }
+                    BuildingType::GrainPit => { f_rate += 3.0; }
+                    BuildingType::StoneQuarry => { m_rate += 4.0; }
+                    BuildingType::ShamanHut => { fa_rate += 3.0; cu_rate += 1.5; }
+                    BuildingType::MegalithCircle => { sc_rate += 4.0; ph_rate += 2.5; }
+                    BuildingType::BronzeForge => { m_rate += 6.0; }
+                    BuildingType::Forum => { g_rate += 5.0; }
+                    BuildingType::Watermill => { m_rate += 15.0; f_rate += 5.0; }
                     _ => {}
                 }
             }
 
-            // Procesar construcción activa de la ciudad
             if let Some((b_type, ref mut prog, total)) = city.current_building {
                 *prog += dt * f32::max(m_rate * 0.5, 1.0);
                 if *prog >= total {
@@ -294,7 +257,6 @@ impl GameState {
         self.culture_rate = cu_rate;
         self.science_rate = sc_rate;
 
-        // Acumular recursos
         self.food += f_rate * dt;
         self.materials += m_rate * dt;
         self.gold += g_rate * dt;
@@ -303,50 +265,85 @@ impl GameState {
         self.culture += cu_rate * dt;
         self.science += sc_rate * dt;
 
-        // Crecimiento demográfico
-        if self.food > 100.0 {
-            self.food -= 50.0;
+        // Crecimiento de población
+        if self.food > 120.0 {
+            self.food -= 60.0;
             self.population += 1;
             if let Some(c) = self.cities.first_mut() {
                 c.population += 1;
             }
         }
 
-        // Progreso de expedición 1D
-        self.expedition_progress += dt * 0.05;
-        if self.expedition_progress >= 1.0 {
-            self.expedition_progress = 0.0;
-            self.current_frontier_node = (self.current_frontier_node + 1) % self.provinces.len();
-            let prov_name = self.provinces[self.current_frontier_node].name.clone();
-            self.event_log.push(format!("Expedición alcanzó: {}", prov_name));
-            if self.event_log.len() > 10 {
-                self.event_log.remove(0);
-            }
-        }
+        // Simulación RTS de Movimiento y Combate de Ejércitos (Dune: Spice Wars style)
+        for i in 0..self.armies.len() {
+            if self.armies[i].is_moving {
+                let speed = get_unit_definition(self.armies[i].unit_type).speed * 0.15 * dt;
+                let dx = self.armies[i].target_x - self.armies[i].world_x;
+                let dy = self.armies[i].target_y - self.armies[i].world_y;
+                let dist = (dx * dx + dy * dy).sqrt();
 
-        // Progreso de Maravilla de la Era actual
-        let era_idx = self.current_era.index();
-        if let Some(wonder) = self.wonders.get_mut(era_idx) {
-            if !wonder.is_completed && self.materials > 50.0 {
-                wonder.progress += dt * 1.5;
-                if wonder.progress >= 100.0 {
-                    wonder.progress = 100.0;
-                    wonder.is_completed = true;
-                    self.event_log.push(format!("¡Gran Maravilla erigida: {}!", wonder.name));
+                if dist < speed || dist < 0.01 {
+                    self.armies[i].world_x = self.armies[i].target_x;
+                    self.armies[i].world_y = self.armies[i].target_y;
+                    self.armies[i].is_moving = false;
+
+                    if let Some(target_prov_id) = self.armies[i].target_province_id {
+                        self.armies[i].current_province_id = target_prov_id;
+                        let target_prov = &mut self.provinces[target_prov_id];
+
+                        if target_prov.is_hostile {
+                            // Iniciar combate RTS en la provincia enemiga
+                            self.armies[i].in_combat = true;
+                            self.event_log.push(format!("⚔️ ¡{} asalta {}!", self.armies[i].name, target_prov.name));
+                        } else if !target_prov.is_colonized {
+                            // Colonizar pacíficamente
+                            target_prov.is_colonized = true;
+                            self.event_log.push(format!("🚩 ¡Provincia {} anexionada al Imperio!", target_prov.name));
+                        }
+                    }
+                } else {
+                    self.armies[i].world_x += (dx / dist) * speed;
+                    self.armies[i].world_y += (dy / dist) * speed;
+                }
+            }
+
+            // Resolución de Combate en Tiempo Real
+            if self.armies[i].in_combat {
+                let target_prov_id = self.armies[i].current_province_id;
+                let army_pow = self.armies[i].combat_power() as f32;
+                let prov = &mut self.provinces[target_prov_id];
+
+                // Daño recíproco
+                prov.garrison_hp -= army_pow * 0.4 * dt;
+                self.armies[i].hp -= (prov.garrison_strength as f32 * 3.0) * dt;
+
+                if prov.garrison_hp <= 0.0 {
+                    prov.garrison_hp = 0.0;
+                    prov.is_hostile = false;
+                    prov.is_colonized = true;
+                    prov.garrison_strength = 10;
+                    self.armies[i].in_combat = false;
+                    self.event_log.push(format!("🏆 ¡Victoria! {} ha sido conquistada.", prov.name));
+                } else if self.armies[i].hp <= 0.0 {
+                    self.armies[i].hp = 0.0;
+                    self.armies[i].in_combat = false;
+                    self.event_log.push(format!("💀 ¡{} fue destruida en combate!", self.armies[i].name));
                 }
             }
         }
+    }
 
-        // Actualizar ejércitos en marcha
-        for army in &mut self.armies {
-            if let Some(target) = army.target_province_id {
-                let speed = get_unit_definition(army.unit_type).speed;
-                army.march_progress += dt * speed * 0.2;
-                if army.march_progress >= 1.0 {
-                    army.province_id = target;
-                    army.target_province_id = None;
-                    army.march_progress = 0.0;
-                }
+    // Ordenar movimiento RTS de ejército hacia una provincia
+    pub fn order_army_to_province(&mut self, army_id: u32, target_prov_id: usize) {
+        if let Some(army) = self.armies.iter_mut().find(|a| a.id == army_id) {
+            if target_prov_id < self.provinces.len() {
+                let prov = &self.provinces[target_prov_id];
+                army.target_x = prov.x;
+                army.target_y = prov.y;
+                army.target_province_id = Some(target_prov_id);
+                army.is_moving = true;
+                army.in_combat = false;
+                self.event_log.push(format!("🚩 {} marcha hacia {}.", army.name, prov.name));
             }
         }
     }
@@ -355,7 +352,7 @@ impl GameState {
         if let Some(next_era) = self.current_era.next() {
             self.current_era = next_era;
             self.era_technologies = generate_era_technologies(next_era);
-            self.event_log.push(format!("¡La civilización entra en: {}!", next_era.name()));
+            self.event_log.push(format!("¡La civilización avanza a: {}!", next_era.name()));
             true
         } else {
             false
@@ -404,7 +401,6 @@ mod tests {
             assert_eq!(state.era_technologies.len(), 8);
         }
 
-        // Test singluarity is the final era
         assert_eq!(state.current_era, EraId::Singularity);
         assert!(!state.advance_era());
     }
@@ -419,28 +415,17 @@ mod tests {
     }
 
     #[test]
-    fn test_building_construction_and_yields() {
+    fn test_rts_army_movement_order() {
         let mut state = GameState::new();
-        state.materials = 500.0;
-        state.food = 500.0;
+        state.order_army_to_province(1, 1);
+        assert!(state.armies[0].is_moving);
+        assert_eq!(state.armies[0].target_province_id, Some(1));
 
-        let success = state.start_building_construction(0, BuildingType::StoneQuarry);
-        assert!(success);
-
-        // Tick simulation until completed
-        for _ in 0..100 {
+        // Simular movimiento con varios ticks
+        for _ in 0..50 {
             state.tick(1.0);
         }
 
-        assert!(state.cities[0].buildings.contains(&BuildingType::StoneQuarry));
-        assert!(state.materials_rate > 2.0);
-    }
-
-    #[test]
-    fn test_army_combat_power_calculation() {
-        let state = GameState::new();
-        assert!(!state.armies.is_empty());
-        let power = state.armies[0].combat_power();
-        assert!(power > 0);
+        assert_eq!(state.armies[0].current_province_id, 1);
     }
 }

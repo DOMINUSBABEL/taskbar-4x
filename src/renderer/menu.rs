@@ -30,15 +30,15 @@ impl MenuRenderer {
             let width = rect.right - rect.left;
             let height = rect.bottom - rect.top;
 
-            // Fondo Mármol / Pizarra Imperial Oscura
-            let bg_brush = CreateSolidBrush(COLORREF(0x000A0F1D)); // Pizarra noche profunda
+            // Fondo Metálico Pizarra Oscura
+            let bg_brush = CreateSolidBrush(COLORREF(0x000B111A));
             FillRect(hdc, rect, bg_brush);
             let _ = DeleteObject(bg_brush);
 
             SetBkMode(hdc, TRANSPARENT);
 
-            // Borde ornamental dorado estilo Imperivm / Cossacks
-            let gold_pen = CreatePen(PS_SOLID, 3, COLORREF(0x001B9EF5)); // Oro imperial
+            // Borde Remachado de Bronce/Oro (Demise of Nations style)
+            let gold_pen = CreatePen(PS_SOLID, 4, COLORREF(0x000B9EF5));
             let old_pen = SelectObject(hdc, gold_pen);
             let _ = MoveToEx(hdc, 16, 16, None);
             let _ = LineTo(hdc, width - 16, 16);
@@ -49,7 +49,7 @@ impl MenuRenderer {
             let _ = DeleteObject(gold_pen);
 
             let font_epic = CreateFontW(
-                32, 0, 0, 0, FW_BOLD.0 as i32, 0, 0, 0,
+                34, 0, 0, 0, FW_BOLD.0 as i32, 0, 0, 0,
                 DEFAULT_CHARSET.0 as u32, OUT_DEFAULT_PRECIS.0 as u32,
                 CLIP_DEFAULT_PRECIS.0 as u32, CLEARTYPE_QUALITY.0 as u32,
                 DEFAULT_PITCH.0 as u32, w!("Outfit"),
@@ -73,7 +73,7 @@ impl MenuRenderer {
                 DEFAULT_PITCH.0 as u32, w!("Segoe UI"),
             );
             let font_bold = CreateFontW(
-                12, 0, 0, 0, FW_BOLD.0 as i32, 0, 0, 0,
+                13, 0, 0, 0, FW_BOLD.0 as i32, 0, 0, 0,
                 DEFAULT_CHARSET.0 as u32, OUT_DEFAULT_PRECIS.0 as u32,
                 CLIP_DEFAULT_PRECIS.0 as u32, CLEARTYPE_QUALITY.0 as u32,
                 DEFAULT_PITCH.0 as u32, w!("Segoe UI"),
@@ -108,24 +108,24 @@ impl MenuRenderer {
             SelectObject(hdc, font_epic);
             SetTextColor(hdc, COLORREF(0x000B9EF5)); // Oro
             let mut title_rect = RECT { left: 0, top: (height / 6), right: width, bottom: (height / 6) + 50 };
-            draw_ui_text(hdc, "🏛️  T A S K  B A R  4 X  🏛️", &mut title_rect, DT_CENTER | DT_SINGLELINE);
+            draw_ui_text(hdc, "🏛️  T A S K  B A R  4 X  |  D E M I S E  O F  N A T I O N S", &mut title_rect, DT_CENTER | DT_SINGLELINE);
 
             SelectObject(hdc, font_sub);
-            SetTextColor(hdc, COLORREF(0x00E2E8F0)); // Blanco pergamino
+            SetTextColor(hdc, COLORREF(0x00E2E8F0));
             let mut sub_rect = RECT { left: 0, top: (height / 6) + 55, right: width, bottom: (height / 6) + 85 };
-            draw_ui_text(hdc, "La Gran Odisea Histórica a través de 15 Edades de la Civilización Humana (4X + Idle Híbrido)", &mut sub_rect, DT_CENTER | DT_SINGLELINE);
+            draw_ui_text(hdc, "Gran Estrategia 4X & RTS en Tiempo Real a través de 15 Edades Históricas", &mut sub_rect, DT_CENTER | DT_SINGLELINE);
 
-            // Botones Principales
-            let btn_width = 440;
-            let btn_height = 48;
+            // Botones Principales con Insets Metálicos
+            let btn_width = 460;
+            let btn_height = 50;
             let start_x = (width - btn_width) / 2;
-            let mut start_y = (height / 6) + 130;
+            let mut start_y = (height / 6) + 120;
 
             let buttons = [
-                ("⚔️ NUEVA PARTIDA / FUNDAR IMPERIO", COLORREF(0x000284C7), COLORREF(0x00FFFFFF)),
-                ("⏳ CONTINUAR CAMPAÑA HISTÓRICA", COLORREF(0x001E293B), COLORREF(0x0094A3B8)),
-                ("🌌 ÁRBOL DE ASCENSIÓN & SINGULARIDAD", COLORREF(0x00311042), COLORREF(0x00E879F9)),
-                ("⚙️ OPCIONES & CONFIGURACIÓN DE BARRA", COLORREF(0x001E293B), COLORREF(0x00CBD5E1)),
+                ("⚔️ NUEVA CAMPAÑA / FUNDAR IMPERIO", COLORREF(0x000284C7), COLORREF(0x00FFFFFF)),
+                ("⏳ CONTINUAR CAMPAÑA (337 a.C.)", COLORREF(0x001E293B), COLORREF(0x0094A3B8)),
+                ("🌌 ÁRBOL DE ASCENSIÓN CÓSMICA", COLORREF(0x00311042), COLORREF(0x00E879F9)),
+                ("⚙️ CONFIGURACIÓN DE BARRA & CONTROLES", COLORREF(0x001E293B), COLORREF(0x00CBD5E1)),
                 ("🚪 SALIR AL ESCRITORIO", COLORREF(0x0017191C), COLORREF(0x00F87171)),
             ];
 
@@ -137,8 +137,7 @@ impl MenuRenderer {
                 FillRect(hdc, &btn_rect, brush);
                 let _ = DeleteObject(brush);
 
-                // Marco fino del botón
-                let border_p = CreatePen(PS_SOLID, 1, COLORREF(0x00FBBF24));
+                let border_p = CreatePen(PS_SOLID, 2, COLORREF(0x00FBBF24));
                 let old_p = SelectObject(hdc, border_p);
                 let _ = MoveToEx(hdc, start_x, start_y, None);
                 let _ = LineTo(hdc, start_x + btn_width, start_y);
@@ -149,23 +148,21 @@ impl MenuRenderer {
                 let _ = DeleteObject(border_p);
 
                 SetTextColor(hdc, text_c);
-                let mut text_rect = RECT { left: start_x, top: start_y + 12, right: start_x + btn_width, bottom: start_y + btn_height };
+                let mut text_rect = RECT { left: start_x, top: start_y + 13, right: start_x + btn_width, bottom: start_y + btn_height };
                 draw_ui_text(hdc, label, &mut text_rect, DT_CENTER | DT_SINGLELINE);
 
                 start_y += btn_height + 16;
             }
 
-            // Pie de página de referencias históricas
             SelectObject(hdc, font_sub);
             SetTextColor(hdc, COLORREF(0x0064748B));
-            let mut foot_rect = RECT { left: 0, top: height - 60, right: width, bottom: height - 20 };
-            draw_ui_text(hdc, "Inspirado en Cossacks 3, Imperivm, Sid Meier's Civilization y Empire Earth | V0.1.0 Alpha", &mut foot_rect, DT_CENTER | DT_SINGLELINE);
+            let mut foot_rect = RECT { left: 0, top: height - 55, right: width, bottom: height - 20 };
+            draw_ui_text(hdc, "Inspirado en Demise of Nations, Dune: Spice Wars, Cossacks 3 y Civilization | V0.2.0 RTS Alpha", &mut foot_rect, DT_CENTER | DT_SINGLELINE);
         }
     }
 
     unsafe fn render_setup_menu(&self, hdc: HDC, width: i32, height: i32, font_epic: HFONT, font_sub: HFONT, font_btn: HFONT, font_body: HFONT, font_bold: HFONT) {
         unsafe {
-            // Título de Configuración
             SelectObject(hdc, font_epic);
             SetTextColor(hdc, COLORREF(0x000B9EF5));
             let mut t_rect = RECT { left: 40, top: 30, right: width - 40, bottom: 70 };
@@ -174,7 +171,7 @@ impl MenuRenderer {
             SelectObject(hdc, font_sub);
             SetTextColor(hdc, COLORREF(0x0094A3B8));
             let mut s_rect = RECT { left: 40, top: 72, right: width - 40, bottom: 95 };
-            draw_ui_text(hdc, "Selecciona tu Cultura de Origen, Arquetipo de Líder y Ritmo de Simulación", &mut s_rect, DT_LEFT | DT_SINGLELINE);
+            draw_ui_text(hdc, "Selecciona tu Civilización, Doctrina de Mando y Ritmo de Simulación RTS", &mut s_rect, DT_LEFT | DT_SINGLELINE);
 
             // 1. SELECCIÓN DE CIVILIZACIÓN (6 tarjetas)
             SelectObject(hdc, font_bold);
@@ -221,7 +218,7 @@ impl MenuRenderer {
                 draw_ui_text(hdc, civ.bonus_desc(), &mut cb_rect, DT_LEFT | DT_WORDBREAK);
             }
 
-            // 2. SELECCIÓN DE LÍDER (6 tarjetas)
+            // 2. SELECCIÓN DE LÍDER
             let leader_y = 320;
             SelectObject(hdc, font_bold);
             SetTextColor(hdc, COLORREF(0x00FBBF24));
@@ -264,12 +261,12 @@ impl MenuRenderer {
                 draw_ui_text(hdc, leader.bonus_desc(), &mut lb_rect, DT_LEFT | DT_WORDBREAK);
             }
 
-            // 3. SELECCIÓN DE RITMO DE JUEGO (3 opciones)
+            // 3. SELECCIÓN DE RITMO RTS / IDLE
             let speed_y = 510;
             SelectObject(hdc, font_bold);
             SetTextColor(hdc, COLORREF(0x00FBBF24));
             let mut sp_hdr = RECT { left: 40, top: speed_y, right: width - 40, bottom: speed_y + 20 };
-            draw_ui_text(hdc, "3. RITMO DE SIMULACIÓN & VELOCIDAD IDLE:", &mut sp_hdr, DT_LEFT | DT_SINGLELINE);
+            draw_ui_text(hdc, "3. VELOCIDAD DE SIMULACIÓN & COMBATE RTS:", &mut sp_hdr, DT_LEFT | DT_SINGLELINE);
 
             let speeds = [GameSpeed::Blitz, GameSpeed::Normal, GameSpeed::Epic];
             for (i, sp) in speeds.iter().enumerate() {
@@ -298,7 +295,7 @@ impl MenuRenderer {
             SelectObject(hdc, font_btn);
             SetTextColor(hdc, COLORREF(0x00FFFFFF));
             let mut st_lbl = RECT { left: width - 450, top: height - 76, right: width - 40, bottom: height - 40 };
-            draw_ui_text(hdc, "🏛️ FUNDAR IMPERIO E INICIAR", &mut st_lbl, DT_CENTER | DT_SINGLELINE);
+            draw_ui_text(hdc, "🏛️ COMENZAR CAMPAÑA RTS", &mut st_lbl, DT_CENTER | DT_SINGLELINE);
 
             let btn_back_rect = RECT { left: 40, top: height - 90, right: 280, bottom: height - 35 };
             let back_brush = CreateSolidBrush(COLORREF(0x00334155));
@@ -314,18 +311,18 @@ impl MenuRenderer {
     unsafe fn render_ascension_menu(&self, hdc: HDC, width: i32, height: i32, font_epic: HFONT, font_sub: HFONT, font_btn: HFONT, font_body: HFONT) {
         unsafe {
             SelectObject(hdc, font_epic);
-            SetTextColor(hdc, COLORREF(0x00E879F9)); // Púrpura cósmico
+            SetTextColor(hdc, COLORREF(0x00E879F9));
             let mut t_rect = RECT { left: 40, top: 40, right: width - 40, bottom: 80 };
-            draw_ui_text(hdc, "🌌  ÁRBOL DE ASCENSIÓN & POLVO DE SINGULARIDAD", &mut t_rect, DT_LEFT | DT_SINGLELINE);
+            draw_ui_text(hdc, "🌌  ÁRBOL DE ASCENSIÓN CÓSMICA", &mut t_rect, DT_LEFT | DT_SINGLELINE);
 
             SelectObject(hdc, font_sub);
             SetTextColor(hdc, COLORREF(0x0094A3B8));
             let mut s_rect = RECT { left: 40, top: 85, right: width - 40, bottom: 110 };
-            draw_ui_text(hdc, "Meta-progresión permanente: Desbloquea leyes universales y artefactos atemporales", &mut s_rect, DT_LEFT | DT_SINGLELINE);
+            draw_ui_text(hdc, "Meta-progresión permanente por Singularidad", &mut s_rect, DT_LEFT | DT_SINGLELINE);
 
             SelectObject(hdc, font_body);
             SetTextColor(hdc, COLORREF(0x00E2E8F0));
-            let desc = "Al completar las 15 Edades y alcanzar la Singularidad Cuántica, la civilización trasciende y genera Polvo de Singularidad. Con este recurso obtienes:\n\n • 🌟 Memoria Genética Ancestral (+15% Tasa de recursos permanente por ciclo)\n • ⚡ Impulso de Fusión Primordial (Inicio directo en Edad del Cobre)\n • 🏛️ Arquetipo Arquitectónico Divino (-20% Coste de Maravillas en todas las eras)\n • 🔮 Visión Astrológica Perenne (+50% Puntos de Ciencia)";
+            let desc = "Alcanza la Singularidad para obtener Polvo Cósmico y desbloquear:\n\n • 🌟 Memoria Genética Ancestral (+15% Tasa de recursos por ciclo)\n • ⚡ Impulso de Fusión Primordial (Inicio en la Edad del Cobre)\n • 🏛️ Arquetipo Arquitectónico Divino (-20% Coste de Maravillas)";
             let mut d_rect = RECT { left: 40, top: 140, right: width - 80, bottom: 350 };
             draw_ui_text(hdc, desc, &mut d_rect, DT_LEFT | DT_WORDBREAK);
 
@@ -346,16 +343,16 @@ impl MenuRenderer {
             SelectObject(hdc, font_epic);
             SetTextColor(hdc, COLORREF(0x0038BDF8));
             let mut t_rect = RECT { left: 40, top: 40, right: width - 40, bottom: 80 };
-            draw_ui_text(hdc, "⚙️  OPCIONES & CONFIGURACIÓN DE BARRA", &mut t_rect, DT_LEFT | DT_SINGLELINE);
+            draw_ui_text(hdc, "⚙️  CONFIGURACIÓN DE BARRA & CONTROLES", &mut t_rect, DT_LEFT | DT_SINGLELINE);
 
             SelectObject(hdc, font_sub);
             SetTextColor(hdc, COLORREF(0x0094A3B8));
             let mut s_rect = RECT { left: 40, top: 85, right: width - 40, bottom: 110 };
-            draw_ui_text(hdc, "Configura el comportamiento del Widget en la Barra de Tareas y Atajos Globales", &mut s_rect, DT_LEFT | DT_SINGLELINE);
+            draw_ui_text(hdc, "Atajos de teclado y comportamiento del widget", &mut s_rect, DT_LEFT | DT_SINGLELINE);
 
             SelectObject(hdc, font_body);
             SetTextColor(hdc, COLORREF(0x00E2E8F0));
-            let desc = " • Altura de Barra Docked: 48 píxeles (Optimizada para ergonomía)\n • Atajo Global de Alternancia: Win + Alt + X o F11\n • Gestión de Passthrough: Habilitado con WM_NCHITTEST inteligente\n • Modo Widget Flotante: Tirador de arrastre en esquina izquierda\n • Tasa de Refresco: 60 FPS fijos en diorama con doble búfer sin parpadeo\n • Consumo en Reposo: 0.0% CPU garantizado con WaitMessage() reactivo";
+            let desc = " • Alternar Pantalla Completa / Barra: F11 o Win + Alt + X\n • Avanzar de Era en Partida: Barra Espaciadora\n • Mover Ejércitos: Clic en provincia y luego en '⚔️ DESPLEGAR'\n • Consumo en Reposo: 0.0% CPU garantizado";
             let mut d_rect = RECT { left: 40, top: 140, right: width - 80, bottom: 350 };
             draw_ui_text(hdc, desc, &mut d_rect, DT_LEFT | DT_WORDBREAK);
 

@@ -12,8 +12,8 @@ use crate::engine::setup::{CivilizationChoice, LeaderTrait, GameSpeed};
 use crate::engine::buildings::BuildingType;
 use crate::renderer::{DioramaRenderer, TacticalRenderer, TacticalTab, MenuRenderer, MenuScreen};
 
-pub const APP_HEIGHT: i32 = 48;
-pub const FLOATING_WIDTH: i32 = 720;
+pub const APP_HEIGHT: i32 = 52;
+pub const FLOATING_WIDTH: i32 = 740;
 pub const TIMER_TICK_ID: usize = 1001;
 pub const TIMER_ANIM_ID: usize = 1002;
 pub const HOTKEY_FS_ID: i32 = 2001;
@@ -166,7 +166,7 @@ pub unsafe extern "system" fn wnd_proc(
                     let mut win_rect = RECT::default();
                     let _ = GetWindowRect(hwnd, &mut win_rect);
 
-                    if x >= win_rect.right - 60 && x <= win_rect.right {
+                    if x >= win_rect.right - 90 && x <= win_rect.right {
                         return LRESULT(HTCLIENT as isize);
                     }
                     if x >= win_rect.left && x <= win_rect.left + 180 {
@@ -192,12 +192,12 @@ pub unsafe extern "system" fn wnd_proc(
                         AppState::InMenu => {
                             match ctx.menu.current_screen {
                                 MenuScreen::Main => {
-                                    let btn_w = 440;
-                                    let btn_h = 48;
+                                    let btn_w = 460;
+                                    let btn_h = 50;
                                     let sx = (width - btn_w) / 2;
-                                    let mut sy = (height / 6) + 130;
+                                    let mut sy = (height / 6) + 120;
 
-                                    // Botón 1: NUEVA PARTIDA / SETUP
+                                    // Botón 1: NUEVA CAMPAÑA
                                     if x >= sx && x <= sx + btn_w && y >= sy && y <= sy + btn_h {
                                         ctx.menu.current_screen = MenuScreen::Setup;
                                     }
@@ -217,7 +217,7 @@ pub unsafe extern "system" fn wnd_proc(
                                     }
                                     sy += btn_h + 16;
 
-                                    // Botón 4: OPCIONES
+                                    // Botón 4: CONFIGURACIÓN
                                     if x >= sx && x <= sx + btn_w && y >= sy && y <= sy + btn_h {
                                         ctx.menu.current_screen = MenuScreen::Settings;
                                     }
@@ -234,7 +234,7 @@ pub unsafe extern "system" fn wnd_proc(
                                     let card_w = (width - 120) / 3;
                                     let card_h = 75;
 
-                                    // Clic en Civilizaciones (6 opciones)
+                                    // Civilizaciones
                                     for (i, civ) in CivilizationChoice::ALL.iter().enumerate() {
                                         let col = (i % 3) as i32;
                                         let row = (i / 3) as i32;
@@ -245,7 +245,7 @@ pub unsafe extern "system" fn wnd_proc(
                                         }
                                     }
 
-                                    // Clic en Líderes (6 opciones)
+                                    // Líderes
                                     let leader_y = 320;
                                     for (i, leader) in LeaderTrait::ALL.iter().enumerate() {
                                         let col = (i % 3) as i32;
@@ -257,7 +257,7 @@ pub unsafe extern "system" fn wnd_proc(
                                         }
                                     }
 
-                                    // Clic en Velocidad (3 opciones)
+                                    // Velocidad
                                     let speed_y = 510;
                                     let speeds = [GameSpeed::Blitz, GameSpeed::Normal, GameSpeed::Epic];
                                     for (i, sp) in speeds.iter().enumerate() {
@@ -268,7 +268,7 @@ pub unsafe extern "system" fn wnd_proc(
                                         }
                                     }
 
-                                    // Botón Iniciar Campaña
+                                    // Iniciar Campaña
                                     if x >= width - 450 && x <= width - 40 && y >= height - 90 && y <= height - 35 {
                                         let chosen_cfg = ctx.menu.config.clone();
                                         ctx.state = GameState::new_with_config(chosen_cfg);
@@ -277,7 +277,7 @@ pub unsafe extern "system" fn wnd_proc(
                                         return LRESULT(0);
                                     }
 
-                                    // Botón Volver
+                                    // Volver
                                     if x >= 40 && x <= 280 && y >= height - 90 && y <= height - 35 {
                                         ctx.menu.current_screen = MenuScreen::Main;
                                     }
@@ -291,72 +291,103 @@ pub unsafe extern "system" fn wnd_proc(
                         }
                         AppState::PlayingTactical => {
                             // Clic en botón de minimizar a barra (esquina superior derecha)
-                            if x >= width - 160 && y <= 48 {
+                            if x >= width - 200 && y <= 54 {
                                 drop(ctx_lock);
                                 switch_app_state(hwnd, AppState::PlayingBarWidget);
                                 return LRESULT(0);
                             }
 
-                            // Clic en pestañas superiores (y entre 48 y 84)
-                            if y >= 48 && y <= 84 {
-                                let tab_w = width / 5;
-                                let tab_idx = (x / tab_w).clamp(0, 4);
-                                ctx.tactical.active_tab = match tab_idx {
-                                0 => TacticalTab::CampaignMap,
-                                1 => TacticalTab::CityManager,
-                                2 => TacticalTab::TechTree,
-                                3 => TacticalTab::MilitaryCabinet,
-                                _ => TacticalTab::WondersAndLog,
-                                };
+                            // Clic en botones del Dock Inferior (Demise of Nations style)
+                            let dock_w = 640;
+                            let dock_x = (width - dock_w) / 2;
+                            let dock_y = height - 76;
+                            if y >= dock_y && y <= height - 8 && x >= dock_x && x <= dock_x + dock_w {
+                                let btn_w = 90;
+                                let rel_x = x - dock_x;
+                                let tab_idx = rel_x / btn_w;
+                                match tab_idx {
+                                    0 => ctx.tactical.active_tab = TacticalTab::CampaignMap,
+                                    1 => ctx.tactical.active_tab = TacticalTab::CityManager,
+                                    2 => ctx.tactical.active_tab = TacticalTab::TechTree,
+                                    3 => ctx.tactical.active_tab = TacticalTab::MilitaryCabinet,
+                                    4 => ctx.tactical.active_tab = TacticalTab::WondersAndLog,
+                                    _ => {
+                                        // Clic en botón Pasar Turno / Velocidad
+                                        if rel_x >= dock_w - 140 {
+                                            let _ = ctx.state.advance_era();
+                                        }
+                                    }
+                                }
                             }
 
-                            // Interacciones dentro de pestañas
-                            match ctx.tactical.active_tab {
-                                TacticalTab::CampaignMap => {
-                                    let map_w = (width * 65) / 100;
+                            // Interacciones dentro del mapa táctico
+                            if ctx.tactical.active_tab == TacticalTab::CampaignMap {
+                                // Clic en Botón "⚔️ DESPLEGAR" (Mover ejército en tiempo real hacia la provincia)
+                                if x >= width - 365 && x <= width - 200 && y >= height - 150 && y <= height - 105 {
+                                    let target_p = ctx.state.selected_province;
+                                    ctx.state.order_army_to_province(1, target_p);
+                                }
+                                // Clic en Botón "🏗️ CONSTRUIR" (Abrir modal de ciudad)
+                                else if x >= width - 190 && x <= width - 30 && y >= height - 150 && y <= height - 105 {
+                                    ctx.tactical.active_tab = TacticalTab::CityManager;
+                                }
+                                // Clic en provincias sobre el mapa
+                                else {
+                                    let map_origin_x = (width / 2) + ctx.tactical.iso_world.camera_x;
+                                    let map_origin_y = 70 + ctx.tactical.iso_world.camera_y;
+
                                     for (i, prov) in ctx.state.provinces.iter().enumerate() {
-                                        let px = 20 + (prov.x * map_w as f32) as i32;
-                                        let py = 100 + (prov.y * (win_rect.bottom - 120) as f32) as i32;
-                                        if (x - px).abs() < 30 && (y - py).abs() < 30 {
+                                        let px = map_origin_x + ((prov.x - 0.5) * (width as f32 * 0.8)) as i32;
+                                        let py = map_origin_y + ((prov.y - 0.4) * (height as f32 * 0.75)) as i32;
+                                        if (x - px).abs() < 70 && (y - py).abs() < 50 {
                                             ctx.state.selected_province = i;
                                             break;
                                         }
                                     }
                                 }
-                                TacticalTab::CityManager => {
-                                    if x >= 35 && x <= 450 && y >= 190 {
-                                        let b_idx = ((y - 190) / 28) as usize;
-                                        let available = [
-                                            BuildingType::Hearth,
-                                            BuildingType::GrainPit,
-                                            BuildingType::StoneQuarry,
-                                            BuildingType::ShamanHut,
-                                            BuildingType::MegalithCircle,
-                                            BuildingType::BronzeForge,
-                                            BuildingType::Forum,
-                                            BuildingType::Watermill,
-                                        ];
-                                        if let Some(b_type) = available.get(b_idx) {
-                                            let _ = ctx.state.start_building_construction(ctx.state.selected_city, *b_type);
-                                        }
+                            } else if ctx.tactical.active_tab == TacticalTab::CityManager {
+                                // Construir edificios
+                                if y >= 150 {
+                                    let b_idx = ((y - 150) / 44) as usize;
+                                    let available = [
+                                        BuildingType::Hearth, BuildingType::GrainPit, BuildingType::StoneQuarry,
+                                        BuildingType::ShamanHut, BuildingType::MegalithCircle, BuildingType::BronzeForge,
+                                        BuildingType::Forum, BuildingType::Watermill,
+                                    ];
+                                    if let Some(b_type) = available.get(b_idx) {
+                                        let _ = ctx.state.start_building_construction(ctx.state.selected_city, *b_type);
                                     }
                                 }
-                                TacticalTab::TechTree => {
-                                    if y >= 140 {
-                                        let row = ((y - 140) / 95) as usize;
-                                        let col = if x < (width / 2) { 0 } else { 1 };
-                                        let tech_idx = row * 2 + col;
-                                        if tech_idx < ctx.state.era_technologies.len() {
-                                            let choice = if (y % 95) < 55 { 0 } else { 1 };
-                                            ctx.state.select_technology_choice(tech_idx, choice);
-                                        }
+                            } else if ctx.tactical.active_tab == TacticalTab::TechTree {
+                                // Seleccionar doctrinas A vs B
+                                if y >= 150 {
+                                    let row = ((y - 150) / 82) as usize;
+                                    let col = if x < (width / 2) { 0 } else { 1 };
+                                    let tech_idx = row * 2 + col;
+                                    if tech_idx < ctx.state.era_technologies.len() {
+                                        let choice = if (y % 82) < 45 { 0 } else { 1 };
+                                        ctx.state.select_technology_choice(tech_idx, choice);
                                     }
                                 }
-                                _ => {}
                             }
                         }
                         AppState::PlayingBarWidget => {
-                            if x >= width - 60 || x <= 160 {
+                            // Clic en botón "⚔️ Marcha" en la barra
+                            if x >= width - 260 && x <= width - 180 {
+                                let next_p = (ctx.state.selected_province + 1) % ctx.state.provinces.len();
+                                ctx.state.selected_province = next_p;
+                                ctx.state.order_army_to_province(1, next_p);
+                            }
+                            // Clic en botón "⚡ Blitz"
+                            else if x >= width - 170 && x <= width - 100 {
+                                ctx.state.config.speed = match ctx.state.config.speed {
+                                    GameSpeed::Blitz => GameSpeed::Normal,
+                                    GameSpeed::Normal => GameSpeed::Epic,
+                                    GameSpeed::Epic => GameSpeed::Blitz,
+                                };
+                            }
+                            // Clic en botón "⛶ F11" o en el orbe
+                            else if x >= width - 90 || x <= 170 {
                                 drop(ctx_lock);
                                 switch_app_state(hwnd, AppState::PlayingTactical);
                                 return LRESULT(0);

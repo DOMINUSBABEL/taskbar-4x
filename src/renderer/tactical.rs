@@ -37,25 +37,7 @@ impl TacticalRenderer {
             let width = rect.right - rect.left;
             let height = rect.bottom - rect.top;
 
-            // Fondo madera/granite oscuro
-            let bg_brush = CreateSolidBrush(COLORREF(0x000F172A));
-            FillRect(hdc, rect, bg_brush);
-            let _ = DeleteObject(bg_brush);
-
             SetBkMode(hdc, TRANSPARENT);
-
-            // 1. HEADER SUPERIOR IMPERIAL (48px) - Madera noble con marco de oro
-            let header_rect = RECT { left: 0, top: 0, right: width, bottom: 48 };
-            let header_brush = CreateSolidBrush(COLORREF(0x0017191C));
-            FillRect(hdc, &header_rect, header_brush);
-            let _ = DeleteObject(header_brush);
-
-            let border_gold = CreatePen(PS_SOLID, 2, COLORREF(0x000B9EF5));
-            let old_p = SelectObject(hdc, border_gold);
-            let _ = MoveToEx(hdc, 0, 48, None);
-            let _ = LineTo(hdc, width, 48);
-            SelectObject(hdc, old_p);
-            let _ = DeleteObject(border_gold);
 
             let font_title = CreateFontW(
                 16, 0, 0, 0, FW_BOLD.0 as i32, 0, 0, 0,
@@ -64,401 +46,513 @@ impl TacticalRenderer {
                 DEFAULT_PITCH.0 as u32, w!("Outfit"),
             );
             let font_body = CreateFontW(
-                11, 0, 0, 0, FW_NORMAL.0 as i32, 0, 0, 0,
+                12, 0, 0, 0, FW_NORMAL.0 as i32, 0, 0, 0,
                 DEFAULT_CHARSET.0 as u32, OUT_DEFAULT_PRECIS.0 as u32,
                 CLIP_DEFAULT_PRECIS.0 as u32, CLEARTYPE_QUALITY.0 as u32,
                 DEFAULT_PITCH.0 as u32, w!("Segoe UI"),
             );
             let font_bold = CreateFontW(
-                11, 0, 0, 0, FW_BOLD.0 as i32, 0, 0, 0,
+                13, 0, 0, 0, FW_BOLD.0 as i32, 0, 0, 0,
                 DEFAULT_CHARSET.0 as u32, OUT_DEFAULT_PRECIS.0 as u32,
                 CLIP_DEFAULT_PRECIS.0 as u32, CLEARTYPE_QUALITY.0 as u32,
                 DEFAULT_PITCH.0 as u32, w!("Segoe UI"),
             );
-
-            let old_font = SelectObject(hdc, font_title);
-            SetTextColor(hdc, COLORREF(0x0000F0FF)); // Cian/Oro neón
-
-            let title_text = format!("🏛️ {} | {}", state.config.civ.name(), state.current_era.name());
-            let mut t_rect = RECT { left: 16, top: 12, right: 400, bottom: 38 };
-            draw_ui_text(hdc, &title_text, &mut t_rect, DT_LEFT | DT_SINGLELINE);
-
-            // Rendimiento de recursos detallado (Civilization style)
-            SelectObject(hdc, font_body);
-            SetTextColor(hdc, COLORREF(0x00FFFFFF));
-
-            let res_line = format!(
-                "🌾 {:.0} (+{:.1}/s) | 🪵 {:.0} (+{:.1}/s) | 🪙 {:.0} (+{:.1}/s) | 🕯️ {:.0} | 📜 {:.0} | 🔬 {:.0} | ⚔️ {:.0}",
-                state.food, state.food_rate, state.materials, state.materials_rate, state.gold, state.gold_rate, state.faith, state.philosophy, state.science, state.military_power
+            let font_res = CreateFontW(
+                18, 0, 0, 0, FW_BOLD.0 as i32, 0, 0, 0,
+                DEFAULT_CHARSET.0 as u32, OUT_DEFAULT_PRECIS.0 as u32,
+                CLIP_DEFAULT_PRECIS.0 as u32, CLEARTYPE_QUALITY.0 as u32,
+                DEFAULT_PITCH.0 as u32, w!("Outfit"),
             );
-            let mut r_rect = RECT { left: 410, top: 14, right: width - 260, bottom: 36 };
-            draw_ui_text(hdc, &res_line, &mut r_rect, DT_LEFT | DT_SINGLELINE);
 
-            // Botón de Minimizar a Barra de Tareas (F11 / Esc)
-            let exit_rect = RECT { left: width - 240, top: 8, right: width - 16, bottom: 40 };
-            let exit_brush = CreateSolidBrush(COLORREF(0x000284C7));
-            FillRect(hdc, &exit_rect, exit_brush);
-            let _ = DeleteObject(exit_brush);
+            // 1. RENDERIZAR LIENZO ISOMÉTRICO 32-BIT EN TODO EL FONDO
+            self.iso_world.resize(width as usize, height as usize);
+            self.iso_world.render_world(state);
+            blit_buffer_to_hdc(hdc, 0, 0, &self.iso_world.backbuffer);
 
-            SetTextColor(hdc, COLORREF(0x00FFFFFF));
-            SelectObject(hdc, font_bold);
-            let mut ex_rect = RECT { left: width - 240, top: 14, right: width - 16, bottom: 36 };
-            draw_ui_text(hdc, "🔽 MINIMIZAR A BARRA (F11)", &mut ex_rect, DT_CENTER | DT_SINGLELINE);
+            // 2. HEADER METÁLICO SUPERIOR (Demise of Nations Style)
+            self.render_top_header(hdc, width, state, font_title, font_bold, font_res);
 
-            // 2. BARRA DE PESTAÑAS DE NAVEGACIÓN (36px)
-            let tab_bar_rect = RECT { left: 0, top: 48, right: width, bottom: 84 };
-            let tab_brush = CreateSolidBrush(COLORREF(0x00111827));
-            FillRect(hdc, &tab_bar_rect, tab_brush);
-            let _ = DeleteObject(tab_brush);
-
-            let tabs = [
-                (TacticalTab::CampaignMap, "🗺️ 1. Mapa Isométrico 32-Bit & Asentamiento"),
-                (TacticalTab::CityManager, "🏙️ 2. Gestión Urbana & Edificios"),
-                (TacticalTab::TechTree, "📜 3. Árbol de 8 Ramas de Desarrollo"),
-                (TacticalTab::MilitaryCabinet, "⚔️ 4. Gabinete de Guerra & Regimientos"),
-                (TacticalTab::WondersAndLog, "🏛️ 5. Maravillas & Crónica Imperial"),
-            ];
-
-            let tab_width = width / tabs.len() as i32;
-            for (i, (tab_type, tab_name)) in tabs.iter().enumerate() {
-                let t_x = (i as i32) * tab_width;
-                let current_tab_rect = RECT { left: t_x, top: 48, right: t_x + tab_width, bottom: 84 };
-
-                if *tab_type == self.active_tab {
-                    let active_brush = CreateSolidBrush(COLORREF(0x001E293B));
-                    FillRect(hdc, &current_tab_rect, active_brush);
-                    let _ = DeleteObject(active_brush);
-
-                    let bar_pen = CreatePen(PS_SOLID, 3, COLORREF(0x000B9EF5));
-                    let op = SelectObject(hdc, bar_pen);
-                    let _ = MoveToEx(hdc, t_x, 83, None);
-                    let _ = LineTo(hdc, t_x + tab_width, 83);
-                    SelectObject(hdc, op);
-                    let _ = DeleteObject(bar_pen);
-
-                    SetTextColor(hdc, COLORREF(0x00FBBF24));
-                    SelectObject(hdc, font_bold);
-                } else {
-                    SetTextColor(hdc, COLORREF(0x0094A3B8));
-                    SelectObject(hdc, font_body);
-                }
-
-                let mut text_rect = RECT { left: t_x, top: 56, right: t_x + tab_width, bottom: 80 };
-                draw_ui_text(hdc, tab_name, &mut text_rect, DT_CENTER | DT_SINGLELINE);
+            // 3. MINIMAPA EN MARCO DE BRONCE REMACHADO (Esquina Superior Izquierda)
+            if self.active_tab == TacticalTab::CampaignMap {
+                self.render_minimap_panel(hdc, font_bold);
             }
 
-            // 3. CONTENIDO DE LA PESTAÑA ACTIVA
-            let content_rect = RECT { left: 20, top: 96, right: width - 20, bottom: height - 20 };
-
+            // 4. OVERLAYS SEGÚN PESTAÑA ACTIVA
             match self.active_tab {
                 TacticalTab::CampaignMap => {
-                    self.render_campaign_map(hdc, &content_rect, state, font_title, font_body, font_bold);
+                    self.render_map_overlay_controls(hdc, width, height, state, font_bold, font_body);
                 }
                 TacticalTab::CityManager => {
-                    self.render_city_manager(hdc, &content_rect, state, font_title, font_body, font_bold);
+                    self.render_city_modal(hdc, width, height, state, font_title, font_body, font_bold);
                 }
                 TacticalTab::TechTree => {
-                    self.render_tech_tree(hdc, &content_rect, state, font_title, font_body, font_bold);
+                    self.render_tech_modal(hdc, width, height, state, font_title, font_body, font_bold);
                 }
                 TacticalTab::MilitaryCabinet => {
-                    self.render_military_cabinet(hdc, &content_rect, state, font_title, font_body, font_bold);
+                    self.render_military_modal(hdc, width, height, state, font_title, font_body, font_bold);
                 }
                 TacticalTab::WondersAndLog => {
-                    self.render_wonders_and_log(hdc, &content_rect, state, font_title, font_body, font_bold);
+                    self.render_wonders_modal(hdc, width, height, state, font_title, font_body, font_bold);
                 }
             }
 
-            SelectObject(hdc, old_font);
+            // 5. DOCK DE COMANDOS INFERIOR CON BOTONES CIRCULARES METÁLICOS (Demise of Nations Style)
+            self.render_bottom_dock(hdc, width, height, state, font_bold);
+
             let _ = DeleteObject(font_title);
             let _ = DeleteObject(font_body);
             let _ = DeleteObject(font_bold);
+            let _ = DeleteObject(font_res);
         }
     }
 
-    unsafe fn render_campaign_map(&mut self, hdc: HDC, rect: &RECT, state: &GameState, font_title: HFONT, _font_body: HFONT, font_bold: HFONT) {
+    unsafe fn render_top_header(&self, hdc: HDC, width: i32, state: &GameState, _font_title: HFONT, font_bold: HFONT, font_res: HFONT) {
         unsafe {
-            let width = rect.right - rect.left;
-            let height = rect.bottom - rect.top;
+            // Marco superior de bronce/oro remachado
+            let header_rect = RECT { left: (width - 920) / 2, top: 8, right: (width + 920) / 2, bottom: 62 };
+            let h_brush = CreateSolidBrush(COLORREF(0x00111827)); // Negro carbón metal
+            FillRect(hdc, &header_rect, h_brush);
+            let _ = DeleteObject(h_brush);
 
-            // Lienzo Isométrico 32-Bit (72% del ancho de pantalla)
-            let iso_view_w = ((width * 72) / 100) as usize;
-            let iso_view_h = height as usize;
-
-            self.iso_world.resize(iso_view_w, iso_view_h);
-            self.iso_world.render_world(state);
-
-            // Transferir el búfer isométrico 32-bit a la pantalla en (rect.left, rect.top)
-            blit_buffer_to_hdc(hdc, rect.left, rect.top, &self.iso_world.backbuffer);
-
-            // Marco ornamental de madera y oro alrededor del visor isométrico
-            let frame_pen = CreatePen(PS_SOLID, 3, COLORREF(0x001B9EF5)); // Oro
-            let op = SelectObject(hdc, frame_pen);
-            let _ = MoveToEx(hdc, rect.left, rect.top, None);
-            let _ = LineTo(hdc, rect.left + iso_view_w as i32, rect.top);
-            let _ = LineTo(hdc, rect.left + iso_view_w as i32, rect.top + iso_view_h as i32);
-            let _ = LineTo(hdc, rect.left, rect.top + iso_view_h as i32);
-            let _ = LineTo(hdc, rect.left, rect.top);
+            let gold_pen = CreatePen(PS_SOLID, 3, COLORREF(0x000B9EF5)); // Borde Oro
+            let op = SelectObject(hdc, gold_pen);
+            let _ = MoveToEx(hdc, header_rect.left, header_rect.top, None);
+            let _ = LineTo(hdc, header_rect.right, header_rect.top);
+            let _ = LineTo(hdc, header_rect.right, header_rect.bottom);
+            let _ = LineTo(hdc, header_rect.left, header_rect.bottom);
+            let _ = LineTo(hdc, header_rect.left, header_rect.top);
             SelectObject(hdc, op);
-            let _ = DeleteObject(frame_pen);
+            let _ = DeleteObject(gold_pen);
 
-            // Mini-Placa de Localización en el Visor
-            let badge_rect = RECT { left: rect.left + 16, top: rect.top + 16, right: rect.left + 320, bottom: rect.top + 55 };
-            let b_brush = CreateSolidBrush(COLORREF(0x000A0F1D));
-            FillRect(hdc, &badge_rect, b_brush);
-            let _ = DeleteObject(b_brush);
+            let h_start = header_rect.left;
+
+            // Insignia de Civilización con Laurel y Espada Verde
+            let crest_rect = RECT { left: h_start + 12, top: 14, right: h_start + 50, bottom: 54 };
+            let crest_brush = CreateSolidBrush(COLORREF(0x00059669)); // Verde imperial
+            FillRect(hdc, &crest_rect, crest_brush);
+            let _ = DeleteObject(crest_brush);
 
             SelectObject(hdc, font_bold);
+            SetTextColor(hdc, COLORREF(0x00FFFFFF));
+            let mut cr_text = RECT { left: h_start + 12, top: 22, right: h_start + 50, bottom: 50 };
+            draw_ui_text(hdc, "🗡️", &mut cr_text, DT_CENTER | DT_SINGLELINE);
+
+            // Nombre de Civilización y Jugador
+            let mut name_rect = RECT { left: h_start + 58, top: 14, right: h_start + 230, bottom: 34 };
+            let civ_title = format!("👑 {}", state.config.civ.name());
+            draw_ui_text(hdc, &civ_title, &mut name_rect, DT_LEFT | DT_SINGLELINE);
+
+            SetTextColor(hdc, COLORREF(0x0094A3B8));
+            let mut sub_rect = RECT { left: h_start + 58, top: 35, right: h_start + 230, bottom: 55 };
+            let sub_title = format!("Líder: {} | Era {}", state.config.leader.name(), state.current_era.index() + 1);
+            draw_ui_text(hdc, &sub_title, &mut sub_rect, DT_LEFT | DT_SINGLELINE);
+
+            // Cápsula de Oro Brillante (Demise of Nations Bullion style)
+            let gold_pod = RECT { left: h_start + 240, top: 12, right: h_start + 420, bottom: 56 };
+            let pod_brush = CreateSolidBrush(COLORREF(0x0017191C));
+            FillRect(hdc, &gold_pod, pod_brush);
+            let _ = DeleteObject(pod_brush);
+
+            SelectObject(hdc, font_res);
+            SetTextColor(hdc, COLORREF(0x0000F0FF)); // Oro brillante
+            let mut gold_text = RECT { left: h_start + 245, top: 20, right: h_start + 415, bottom: 50 };
+            let gold_str = format!("🪙 {:.0}", state.gold);
+            draw_ui_text(hdc, &gold_str, &mut gold_text, DT_CENTER | DT_SINGLELINE);
+
+            // Cápsulas de Madera, Materiales y Comida (Demise of Nations Pods)
+            let res_pod = RECT { left: h_start + 430, top: 14, right: h_start + 730, bottom: 54 };
+            let r_brush = CreateSolidBrush(COLORREF(0x001E293B));
+            FillRect(hdc, &res_pod, r_brush);
+            let _ = DeleteObject(r_brush);
+
+            SelectObject(hdc, font_bold);
+            SetTextColor(hdc, COLORREF(0x00FFFFFF));
+            let mut r_text = RECT { left: h_start + 440, top: 22, right: h_start + 720, bottom: 48 };
+            let res_str = format!("🪵 {:.0}   ⛏️ {:.0}   🌾 {:.0}   🔬 {:.0}", state.materials, state.materials_rate * 50.0, state.food, state.science);
+            draw_ui_text(hdc, &res_str, &mut r_text, DT_CENTER | DT_SINGLELINE);
+
+            // Medidor de Felicidad / Estabilidad (Felicidad: 81%)
+            let mut hap_rect = RECT { left: h_start + 740, top: 14, right: h_start + 880, bottom: 34 };
+            SetTextColor(hdc, COLORREF(0x0022C55E)); // Verde esmeralda
+            let hap_str = format!("Felicidad: {:.0}%", state.stability);
+            draw_ui_text(hdc, &hap_str, &mut hap_rect, DT_LEFT | DT_SINGLELINE);
+
+            // Barra de progreso de felicidad
+            let bar_rect = RECT { left: h_start + 740, top: 38, right: h_start + 880, bottom: 48 };
+            let bar_bg = CreateSolidBrush(COLORREF(0x000F172A));
+            FillRect(hdc, &bar_rect, bar_bg);
+            let _ = DeleteObject(bar_bg);
+
+            let fill_w = ((140.0 * (state.stability / 100.0)) as i32).clamp(0, 140);
+            let fill_rect = RECT { left: h_start + 740, top: 38, right: h_start + 740 + fill_w, bottom: 48 };
+            let fill_brush = CreateSolidBrush(COLORREF(0x0022C55E));
+            FillRect(hdc, &fill_rect, fill_brush);
+            let _ = DeleteObject(fill_brush);
+
+            // Botón de Minimizar a Barra en la esquina derecha
+            let btn_min_rect = RECT { left: width - 200, top: 12, right: width - 16, bottom: 54 };
+            let min_brush = CreateSolidBrush(COLORREF(0x000284C7));
+            FillRect(hdc, &btn_min_rect, min_brush);
+            let _ = DeleteObject(min_brush);
+
+            SetTextColor(hdc, COLORREF(0x00FFFFFF));
+            let mut min_text = RECT { left: width - 200, top: 22, right: width - 16, bottom: 46 };
+            draw_ui_text(hdc, "🔽 MODO BARRA (F11)", &mut min_text, DT_CENTER | DT_SINGLELINE);
+        }
+    }
+
+    unsafe fn render_minimap_panel(&self, hdc: HDC, font_bold: HFONT) {
+        unsafe {
+            // Marco Remachado de Bronce para el Minimapa (Demise of Nations style)
+            let m_rect = RECT { left: 16, top: 75, right: 240, bottom: 260 };
+            let bg_brush = CreateSolidBrush(COLORREF(0x00111827));
+            FillRect(hdc, &m_rect, bg_brush);
+            let _ = DeleteObject(bg_brush);
+
+            let border_p = CreatePen(PS_SOLID, 3, COLORREF(0x00FBBF24));
+            let op = SelectObject(hdc, border_p);
+            let _ = MoveToEx(hdc, m_rect.left, m_rect.top, None);
+            let _ = LineTo(hdc, m_rect.right, m_rect.top);
+            let _ = LineTo(hdc, m_rect.right, m_rect.bottom);
+            let _ = LineTo(hdc, m_rect.left, m_rect.bottom);
+            let _ = LineTo(hdc, m_rect.left, m_rect.top);
+            SelectObject(hdc, op);
+            let _ = DeleteObject(border_p);
+
+            // Cabecera: Turno / Año 337 BC
+            SelectObject(hdc, font_bold);
             SetTextColor(hdc, COLORREF(0x00FBBF24));
-            let mut bl_rect = RECT { left: rect.left + 24, top: rect.top + 22, right: rect.left + 310, bottom: rect.top + 48 };
-            let loc_text = format!("📍 {} | Asentamiento Principal", state.cities[0].name);
-            draw_ui_text(hdc, &loc_text, &mut bl_rect, DT_LEFT | DT_SINGLELINE);
+            let mut turn_rect = RECT { left: 24, top: 82, right: 230, bottom: 102 };
+            draw_ui_text(hdc, "Turno 2 | Julio, 337 a.C.", &mut turn_rect, DT_LEFT | DT_SINGLELINE);
 
-            // Panel Contextual Derecho (Dossier Imperial & Órdenes)
-            let panel_x = rect.left + iso_view_w as i32 + 15;
-            let _panel_w = width - iso_view_w as i32 - 15;
-            let panel_rect = RECT { left: panel_x, top: rect.top, right: rect.right, bottom: rect.bottom };
-            let panel_brush = CreateSolidBrush(COLORREF(0x001E293B));
-            FillRect(hdc, &panel_rect, panel_brush);
-            let _ = DeleteObject(panel_brush);
+            // Mapa mini geopolítico
+            let map_inner = RECT { left: 24, top: 106, right: 232, bottom: 215 };
+            let map_brush = CreateSolidBrush(COLORREF(0x001E293B));
+            FillRect(hdc, &map_inner, map_brush);
+            let _ = DeleteObject(map_brush);
 
-            // Marco del panel
-            let p_border = CreatePen(PS_SOLID, 1, COLORREF(0x00475569));
-            let old_pb = SelectObject(hdc, p_border);
-            let _ = MoveToEx(hdc, panel_x, rect.top, None);
-            let _ = LineTo(hdc, rect.right, rect.top);
-            let _ = LineTo(hdc, rect.right, rect.bottom);
-            let _ = LineTo(hdc, panel_x, rect.bottom);
-            let _ = LineTo(hdc, panel_x, rect.top);
-            SelectObject(hdc, old_pb);
-            let _ = DeleteObject(p_border);
-
-            // Título de Provincia
-            SelectObject(hdc, font_title);
-            SetTextColor(hdc, COLORREF(0x0000F0FF));
-            let p_name = format!("🦅 Provincia: {}", state.provinces[state.selected_province].name);
-            let mut pn_rect = RECT { left: panel_x + 16, top: rect.top + 16, right: rect.right - 16, bottom: rect.top + 42 };
-            draw_ui_text(hdc, &p_name, &mut pn_rect, DT_LEFT | DT_SINGLELINE);
-
-            // Información y Datos de Campaña
-            let prov = &state.provinces[state.selected_province];
-            let desc = format!(
-                "Bioma: {}\nEstado: {}\nNivel de Asentamiento: {}\nGuarnición: {} hombres\n\n═══════════════════════\nORDEN DE BATALLA (Cossacks Style):\n • Regimientos Activos: {} divisiones\n • Formación: Rectangular de 36 mosqueteros\n • Estandarte: Águila Imperial\n\n[Haz clic para ordenar maniobras o construir distritos]",
-                prov.biome.name(),
-                if prov.is_colonized { "Territorio Imperial Colonizado" } else if prov.is_hostile { "Feudo Hostil Rebelde" } else { "Tierra Virgen Inexplorada" },
-                prov.development_level,
-                prov.garrison_strength,
-                state.armies.len()
-            );
-
-            SelectObject(hdc, _font_body);
-            SetTextColor(hdc, COLORREF(0x00E2E8F0));
-            let mut desc_rect = RECT { left: panel_x + 16, top: rect.top + 52, right: rect.right - 16, bottom: rect.top + 320 };
-            draw_ui_text(hdc, &desc, &mut desc_rect, DT_LEFT | DT_WORDBREAK);
-
-            // Botones de acción rápida en el panel
-            let actions = [
-                "⚔️ Reclutar Regimiento de Línea (36 hombres)",
-                "🌾 Expandir Campos de Trigo (+5.0 Comida/s)",
-                "⛏️ Abrir Cantera de Piedra (+4.0 Mat/s)",
-                "🏛️ Construir Monumento Cívico (+10 Fe/s)",
+            // Dibujar provincias miniatura
+            let colors = [
+                COLORREF(0x000284C7), COLORREF(0x00059669), COLORREF(0x00D97706),
+                COLORREF(0x00DC2626), COLORREF(0x009333EA), COLORREF(0x00475569),
             ];
+            for (i, col) in colors.iter().enumerate() {
+                let mx = 40 + (i as i32 % 3) * 60;
+                let my = 120 + (i as i32 / 3) * 40;
+                let dot_rect = RECT { left: mx, top: my, right: mx + 45, bottom: my + 30 };
+                let brush = CreateSolidBrush(*col);
+                FillRect(hdc, &dot_rect, brush);
+                let _ = DeleteObject(brush);
+            }
 
-            let mut act_y = rect.top + 330;
-            for act in actions {
-                let act_rect = RECT { left: panel_x + 16, top: act_y, right: rect.right - 16, bottom: act_y + 32 };
-                let act_brush = CreateSolidBrush(COLORREF(0x00334155));
-                FillRect(hdc, &act_rect, act_brush);
-                let _ = DeleteObject(act_brush);
+            // Botones redondos de Zoom (+, -, ojo, globo)
+            let zoom_icons = ["👁️", "🔍-", "🔍+", "🌐"];
+            for (i, ic) in zoom_icons.iter().enumerate() {
+                let bx = 26 + (i as i32) * 52;
+                let by = 222;
+                let z_rect = RECT { left: bx, top: by, right: bx + 44, bottom: by + 30 };
+                let zb = CreateSolidBrush(COLORREF(0x00334155));
+                FillRect(hdc, &z_rect, zb);
+                let _ = DeleteObject(zb);
 
                 SetTextColor(hdc, COLORREF(0x00FFFFFF));
-                SelectObject(hdc, font_bold);
-                let mut at_rect = RECT { left: panel_x + 24, top: act_y + 8, right: rect.right - 20, bottom: act_y + 28 };
-                draw_ui_text(hdc, act, &mut at_rect, DT_LEFT | DT_SINGLELINE);
-
-                act_y += 40;
+                let mut zt = RECT { left: bx, top: by + 6, right: bx + 44, bottom: by + 28 };
+                draw_ui_text(hdc, ic, &mut zt, DT_CENTER | DT_SINGLELINE);
             }
         }
     }
 
-    unsafe fn render_city_manager(&self, hdc: HDC, rect: &RECT, state: &GameState, font_title: HFONT, font_body: HFONT, font_bold: HFONT) {
+    unsafe fn render_map_overlay_controls(&self, hdc: HDC, width: i32, height: i32, state: &GameState, font_bold: HFONT, font_body: HFONT) {
         unsafe {
-            SelectObject(hdc, font_title);
+            // Panel de Control Rápido de la Provincia Seleccionada (Esquina Inferior Derecha)
+            let p_rect = RECT { left: width - 380, top: height - 260, right: width - 20, bottom: height - 90 };
+            let p_brush = CreateSolidBrush(COLORREF(0x00111827));
+            FillRect(hdc, &p_rect, p_brush);
+            let _ = DeleteObject(p_brush);
+
+            let border_p = CreatePen(PS_SOLID, 2, COLORREF(0x000B9EF5));
+            let op = SelectObject(hdc, border_p);
+            let _ = MoveToEx(hdc, p_rect.left, p_rect.top, None);
+            let _ = LineTo(hdc, p_rect.right, p_rect.top);
+            let _ = LineTo(hdc, p_rect.right, p_rect.bottom);
+            let _ = LineTo(hdc, p_rect.left, p_rect.bottom);
+            let _ = LineTo(hdc, p_rect.left, p_rect.top);
+            SelectObject(hdc, op);
+            let _ = DeleteObject(border_p);
+
+            let prov = &state.provinces[state.selected_province];
+
+            SelectObject(hdc, font_bold);
             SetTextColor(hdc, COLORREF(0x0000F0FF));
-            let mut t_rect = RECT { left: rect.left, top: rect.top, right: rect.right, bottom: rect.top + 30 };
-            draw_ui_text(hdc, "🏙️ Gestión Urbana y Edificios de la Civilización", &mut t_rect, DT_LEFT | DT_SINGLELINE);
+            let mut pt = RECT { left: width - 365, top: height - 250, right: width - 30, bottom: height - 230 };
+            let p_title = format!("📍 {}", prov.name);
+            draw_ui_text(hdc, &p_title, &mut pt, DT_LEFT | DT_SINGLELINE);
 
             SelectObject(hdc, font_body);
+            SetTextColor(hdc, COLORREF(0x00E2E8F0));
+            let mut pd = RECT { left: width - 365, top: height - 225, right: width - 30, bottom: height - 165 };
+            let p_desc = format!(
+                "Bioma: {} | {}\nGuarnición: {} hombres (HP: {:.0}/{:.0})\nEdificios: {} distritos construidos",
+                prov.biome.name(),
+                if prov.is_colonized { "Asentamiento Aliado" } else if prov.is_hostile { "Feudo Hostil Rebelde" } else { "Tierra Virgen" },
+                prov.garrison_strength, prov.garrison_hp, prov.max_garrison_hp,
+                prov.buildings.len()
+            );
+            draw_ui_text(hdc, &p_desc, &mut pd, DT_LEFT | DT_WORDBREAK);
+
+            // Botones de Acción Rápida RTS (Mover Ejército / Construir Distrito)
+            let btn_move = RECT { left: width - 365, top: height - 150, right: width - 200, bottom: height - 105 };
+            let bm_brush = CreateSolidBrush(COLORREF(0x00DC2626)); // Rojo ataque
+            FillRect(hdc, &btn_move, bm_brush);
+            let _ = DeleteObject(bm_brush);
+
+            SelectObject(hdc, font_bold);
             SetTextColor(hdc, COLORREF(0x00FFFFFF));
+            let mut bmt = RECT { left: width - 365, top: height - 140, right: width - 200, bottom: height - 115 };
+            draw_ui_text(hdc, "⚔️ DESPLEGAR", &mut bmt, DT_CENTER | DT_SINGLELINE);
 
-            if let Some(city) = state.cities.get(state.selected_city) {
-                let c_info = format!("Ciudad: {} (Población: {} habitantes)", city.name, city.population);
-                let mut ci_rect = RECT { left: rect.left, top: rect.top + 35, right: rect.right, bottom: rect.top + 60 };
-                draw_ui_text(hdc, &c_info, &mut ci_rect, DT_LEFT | DT_SINGLELINE);
+            let btn_build = RECT { left: width - 190, top: height - 150, right: width - 30, bottom: height - 105 };
+            let bb_brush = CreateSolidBrush(COLORREF(0x000284C7)); // Azul construcción
+            FillRect(hdc, &btn_build, bb_brush);
+            let _ = DeleteObject(bb_brush);
 
-                let mut y_off = rect.top + 70;
+            let mut bbt = RECT { left: width - 190, top: height - 140, right: width - 30, bottom: height - 115 };
+            draw_ui_text(hdc, "🏗️ CONSTRUIR", &mut bbt, DT_CENTER | DT_SINGLELINE);
+        }
+    }
+
+    unsafe fn render_bottom_dock(&self, hdc: HDC, width: i32, height: i32, state: &GameState, font_bold: HFONT) {
+        unsafe {
+            // Barra Dock Inferior con Botones Redondos Metálicos (Demise of Nations style)
+            let dock_w = 640;
+            let dock_x = (width - dock_w) / 2;
+            let dock_y = height - 76;
+
+            let dock_rect = RECT { left: dock_x, top: dock_y, right: dock_x + dock_w, bottom: height - 8 };
+            let dock_brush = CreateSolidBrush(COLORREF(0x000F172A));
+            FillRect(hdc, &dock_rect, dock_brush);
+            let _ = DeleteObject(dock_brush);
+
+            let dock_border = CreatePen(PS_SOLID, 2, COLORREF(0x000B9EF5));
+            let op = SelectObject(hdc, dock_border);
+            let _ = MoveToEx(hdc, dock_x, dock_y, None);
+            let _ = LineTo(hdc, dock_x + dock_w, dock_y);
+            let _ = LineTo(hdc, dock_x + dock_w, height - 8);
+            let _ = LineTo(hdc, dock_x, height - 8);
+            let _ = LineTo(hdc, dock_x, dock_y);
+            SelectObject(hdc, op);
+            let _ = DeleteObject(dock_border);
+
+            let buttons = [
+                (TacticalTab::CampaignMap, "🗺️", "Mapa"),
+                (TacticalTab::CityManager, "🏙️", "Ciudad"),
+                (TacticalTab::TechTree, "🌐", "Árbol"),
+                (TacticalTab::MilitaryCabinet, "✊", "Militar"),
+                (TacticalTab::WondersAndLog, "ℹ️", "Crónica"),
+            ];
+
+            let btn_w = 90;
+            for (i, (tab_type, icon, name)) in buttons.iter().enumerate() {
+                let bx = dock_x + 15 + (i as i32) * btn_w;
+                let by = dock_y + 8;
+                let is_active = self.active_tab == *tab_type;
+
+                let b_rect = RECT { left: bx, top: by, right: bx + 80, bottom: by + 50 };
+                let bg_c = if is_active { COLORREF(0x000284C7) } else { COLORREF(0x001E293B) };
+                let brush = CreateSolidBrush(bg_c);
+                FillRect(hdc, &b_rect, brush);
+                let _ = DeleteObject(brush);
+
                 SelectObject(hdc, font_bold);
+                SetTextColor(hdc, if is_active { COLORREF(0x00FFFFFF) } else { COLORREF(0x0094A3B8) });
+                let label = format!("{}\n{}", icon, name);
+                let mut lt = RECT { left: bx, top: by + 6, right: bx + 80, bottom: by + 46 };
+                draw_ui_text(hdc, &label, &mut lt, DT_CENTER | DT_WORDBREAK);
+            }
+
+            // Botón de Pasar Turno / Velocidad en la Derecha del Dock (Demise of Nations Checkmark style)
+            let end_turn_rect = RECT { left: dock_x + dock_w - 140, top: dock_y + 8, right: dock_x + dock_w - 15, bottom: dock_y + 58 };
+            let et_brush = CreateSolidBrush(COLORREF(0x00059669)); // Verde victoria
+            FillRect(hdc, &end_turn_rect, et_brush);
+            let _ = DeleteObject(et_brush);
+
+            SelectObject(hdc, font_bold);
+            SetTextColor(hdc, COLORREF(0x00FFFFFF));
+            let sp_lbl = format!("✔ {}", state.config.speed.name());
+            let mut ett = RECT { left: end_turn_rect.left, top: end_turn_rect.top + 16, right: end_turn_rect.right, bottom: end_turn_rect.bottom };
+            draw_ui_text(hdc, &sp_lbl, &mut ett, DT_CENTER | DT_SINGLELINE);
+        }
+    }
+
+    unsafe fn render_city_modal(&self, hdc: HDC, width: i32, height: i32, _state: &GameState, font_title: HFONT, font_body: HFONT, font_bold: HFONT) {
+        unsafe {
+            let m_rect = RECT { left: (width - 700) / 2, top: 100, right: (width + 700) / 2, bottom: height - 100 };
+            let bg_brush = CreateSolidBrush(COLORREF(0x00111827));
+            FillRect(hdc, &m_rect, bg_brush);
+            let _ = DeleteObject(bg_brush);
+
+            let border_p = CreatePen(PS_SOLID, 2, COLORREF(0x000B9EF5));
+            let op = SelectObject(hdc, border_p);
+            let _ = MoveToEx(hdc, m_rect.left, m_rect.top, None);
+            let _ = LineTo(hdc, m_rect.right, m_rect.top);
+            let _ = LineTo(hdc, m_rect.right, m_rect.bottom);
+            let _ = LineTo(hdc, m_rect.left, m_rect.bottom);
+            let _ = LineTo(hdc, m_rect.left, m_rect.top);
+            SelectObject(hdc, op);
+            let _ = DeleteObject(border_p);
+
+            SelectObject(hdc, font_title);
+            SetTextColor(hdc, COLORREF(0x0000F0FF));
+            let mut tt = RECT { left: m_rect.left + 24, top: m_rect.top + 20, right: m_rect.right - 24, bottom: m_rect.top + 45 };
+            draw_ui_text(hdc, "🏙️ GESTIÓN URBANA & EDIFICIOS HISTÓRICOS", &mut tt, DT_LEFT | DT_SINGLELINE);
+
+            let mut y = m_rect.top + 60;
+            let available_buildings = [
+                BuildingType::Hearth, BuildingType::GrainPit, BuildingType::StoneQuarry,
+                BuildingType::ShamanHut, BuildingType::MegalithCircle, BuildingType::BronzeForge,
+                BuildingType::Forum, BuildingType::Watermill,
+            ];
+
+            SelectObject(hdc, font_body);
+            for b in available_buildings {
+                let def = get_building_definition(b);
+                let b_rect = RECT { left: m_rect.left + 24, top: y, right: m_rect.right - 24, bottom: y + 36 };
+                let br_brush = CreateSolidBrush(COLORREF(0x001E293B));
+                FillRect(hdc, &b_rect, br_brush);
+                let _ = DeleteObject(br_brush);
+
                 SetTextColor(hdc, COLORREF(0x00FBBF24));
-                let mut bl_rect = RECT { left: rect.left, top: y_off, right: rect.right, bottom: y_off + 20 };
-                draw_ui_text(hdc, "Edificios Construidos en la Ciudad:", &mut bl_rect, DT_LEFT | DT_SINGLELINE);
-
-                y_off += 25;
-                SelectObject(hdc, font_body);
-                SetTextColor(hdc, COLORREF(0x00E2E8F0));
-                for b in &city.buildings {
-                    let def = get_building_definition(*b);
-                    let b_str = format!(" • {} — {}", def.name, def.production_bonus_desc);
-                    let mut bs_rect = RECT { left: rect.left + 15, top: y_off, right: rect.right, bottom: y_off + 20 };
-                    draw_ui_text(hdc, &b_str, &mut bs_rect, DT_LEFT | DT_SINGLELINE);
-                    y_off += 22;
-                }
-
-                y_off += 15;
                 SelectObject(hdc, font_bold);
-                SetTextColor(hdc, COLORREF(0x0038BDF8));
-                let mut al_rect = RECT { left: rect.left, top: y_off, right: rect.right, bottom: y_off + 20 };
-                draw_ui_text(hdc, "Edificios Disponibles para Construir (Haz clic para iniciar obra):", &mut al_rect, DT_LEFT | DT_SINGLELINE);
+                let mut lt = RECT { left: m_rect.left + 35, top: y + 8, right: m_rect.right - 35, bottom: y + 30 };
+                let b_text = format!("🔨 Construir {} [🪵{} Mat, 🌾{} Comida] — {}", def.name, def.material_cost, def.food_cost, def.production_bonus_desc);
+                draw_ui_text(hdc, &b_text, &mut lt, DT_LEFT | DT_SINGLELINE);
 
-                y_off += 25;
-                let available_buildings = [
-                    BuildingType::Hearth,
-                    BuildingType::GrainPit,
-                    BuildingType::StoneQuarry,
-                    BuildingType::ShamanHut,
-                    BuildingType::MegalithCircle,
-                    BuildingType::BronzeForge,
-                    BuildingType::Forum,
-                    BuildingType::Watermill,
-                ];
-
-                SelectObject(hdc, font_body);
-                for b_type in available_buildings {
-                    let def = get_building_definition(b_type);
-                    let b_btn_rect = RECT { left: rect.left + 15, top: y_off, right: rect.left + 550, bottom: y_off + 26 };
-                    let btn_brush = CreateSolidBrush(COLORREF(0x00334155));
-                    FillRect(hdc, &b_btn_rect, btn_brush);
-                    let _ = DeleteObject(btn_brush);
-
-                    SetTextColor(hdc, COLORREF(0x00FFFFFF));
-                    let opt_str = format!(" 🔨 Construir {} [🪵{} Mat, 🌾{} Comida] — {}", def.name, def.material_cost, def.food_cost, def.production_bonus_desc);
-                    let mut opt_rect = RECT { left: rect.left + 18, top: y_off + 4, right: rect.left + 545, bottom: y_off + 24 };
-                    draw_ui_text(hdc, &opt_str, &mut opt_rect, DT_LEFT | DT_SINGLELINE);
-
-                    y_off += 30;
-                }
+                y += 44;
             }
         }
     }
 
-    unsafe fn render_tech_tree(&self, hdc: HDC, rect: &RECT, state: &GameState, font_title: HFONT, font_body: HFONT, font_bold: HFONT) {
+    unsafe fn render_tech_modal(&self, hdc: HDC, width: i32, height: i32, state: &GameState, font_title: HFONT, font_body: HFONT, font_bold: HFONT) {
         unsafe {
+            let m_rect = RECT { left: (width - 800) / 2, top: 90, right: (width + 800) / 2, bottom: height - 90 };
+            let bg_brush = CreateSolidBrush(COLORREF(0x00111827));
+            FillRect(hdc, &m_rect, bg_brush);
+            let _ = DeleteObject(bg_brush);
+
             SelectObject(hdc, font_title);
             SetTextColor(hdc, COLORREF(0x0000F0FF));
-            let title = format!("📜 Árbol de 8 Ramas de Desarrollo — {}", state.current_era.name());
-            let mut t_rect = RECT { left: rect.left, top: rect.top, right: rect.right, bottom: rect.top + 30 };
-            draw_ui_text(hdc, &title, &mut t_rect, DT_LEFT | DT_SINGLELINE);
+            let mut tt = RECT { left: m_rect.left + 24, top: m_rect.top + 20, right: m_rect.right - 24, bottom: m_rect.top + 45 };
+            let t_str = format!("📜 ÁRBOL DE 8 RAMAS DE DESARROLLO — {}", state.current_era.name());
+            draw_ui_text(hdc, &t_str, &mut tt, DT_LEFT | DT_SINGLELINE);
 
-            let y_off = rect.top + 40;
-            let col_width = (rect.right - rect.left - 20) / 2;
+            let col_w = (m_rect.right - m_rect.left - 60) / 2;
+            let y_off = m_rect.top + 60;
 
             for (i, tech) in state.era_technologies.iter().enumerate() {
                 let col = i % 2;
                 let row = i / 2;
-                let card_x = rect.left + (col as i32) * (col_width + 15);
-                let card_y = y_off + (row as i32) * 95;
+                let cx = m_rect.left + 24 + (col as i32) * (col_w + 12);
+                let cy = y_off + (row as i32) * 82;
 
-                let card_rect = RECT { left: card_x, top: card_y, right: card_x + col_width, bottom: card_y + 85 };
+                let card_rect = RECT { left: cx, top: cy, right: cx + col_w, bottom: cy + 74 };
                 let card_brush = CreateSolidBrush(COLORREF(0x001E293B));
                 FillRect(hdc, &card_rect, card_brush);
                 let _ = DeleteObject(card_brush);
 
                 SelectObject(hdc, font_bold);
                 SetTextColor(hdc, COLORREF(0x00FBBF24));
+                let mut ht = RECT { left: cx + 8, top: cy + 6, right: cx + col_w - 8, bottom: cy + 24 };
                 let header = format!("{} {}", tech.branch.name(), tech.title);
-                let mut h_rect = RECT { left: card_x + 8, top: card_y + 6, right: card_x + col_width - 8, bottom: card_y + 24 };
-                draw_ui_text(hdc, &header, &mut h_rect, DT_LEFT | DT_SINGLELINE);
+                draw_ui_text(hdc, &header, &mut ht, DT_LEFT | DT_SINGLELINE);
 
                 SelectObject(hdc, font_body);
                 SetTextColor(hdc, COLORREF(0x00E2E8F0));
-                let opt_a_str = format!("A: {} ({})", tech.choice_a.name, tech.choice_a.buff_desc);
-                let mut oa_rect = RECT { left: card_x + 8, top: card_y + 28, right: card_x + col_width - 8, bottom: card_y + 48 };
-                draw_ui_text(hdc, &opt_a_str, &mut oa_rect, DT_LEFT | DT_SINGLELINE);
+                let mut at = RECT { left: cx + 8, top: cy + 26, right: cx + col_w - 8, bottom: cy + 48 };
+                let a_str = format!("A: {} ({})", tech.choice_a.name, tech.choice_a.buff_desc);
+                draw_ui_text(hdc, &a_str, &mut at, DT_LEFT | DT_SINGLELINE);
 
-                let opt_b_str = format!("B: {} ({})", tech.choice_b.name, tech.choice_b.buff_desc);
-                let mut ob_rect = RECT { left: card_x + 8, top: card_y + 50, right: card_x + col_width - 8, bottom: card_y + 70 };
-                draw_ui_text(hdc, &opt_b_str, &mut ob_rect, DT_LEFT | DT_SINGLELINE);
+                let mut bt = RECT { left: cx + 8, top: cy + 48, right: cx + col_w - 8, bottom: cy + 70 };
+                let b_str = format!("B: {} ({})", tech.choice_b.name, tech.choice_b.buff_desc);
+                draw_ui_text(hdc, &b_str, &mut bt, DT_LEFT | DT_SINGLELINE);
             }
         }
     }
 
-    unsafe fn render_military_cabinet(&self, hdc: HDC, rect: &RECT, state: &GameState, font_title: HFONT, font_body: HFONT, font_bold: HFONT) {
+    unsafe fn render_military_modal(&self, hdc: HDC, width: i32, height: i32, state: &GameState, font_title: HFONT, font_body: HFONT, font_bold: HFONT) {
         unsafe {
+            let m_rect = RECT { left: (width - 700) / 2, top: 100, right: (width + 700) / 2, bottom: height - 100 };
+            let bg_brush = CreateSolidBrush(COLORREF(0x00111827));
+            FillRect(hdc, &m_rect, bg_brush);
+            let _ = DeleteObject(bg_brush);
+
             SelectObject(hdc, font_title);
             SetTextColor(hdc, COLORREF(0x0000F0FF));
-            let mut t_rect = RECT { left: rect.left, top: rect.top, right: rect.right, bottom: rect.top + 30 };
-            draw_ui_text(hdc, "⚔️ Gabinete de Guerra y Despliegue de Ejércitos", &mut t_rect, DT_LEFT | DT_SINGLELINE);
+            let mut tt = RECT { left: m_rect.left + 24, top: m_rect.top + 20, right: m_rect.right - 24, bottom: m_rect.top + 45 };
+            draw_ui_text(hdc, "⚔️ GABINETE DE GUERRA & DESPLIEGUE RTS", &mut tt, DT_LEFT | DT_SINGLELINE);
 
-            let mut y_off = rect.top + 45;
             SelectObject(hdc, font_bold);
             SetTextColor(hdc, COLORREF(0x00F87171));
-            let mil_info = format!("Poder Militar Total del Imperio: {:.0} | Divisiones Activas: {}", state.military_power, state.armies.len());
-            let mut mi_rect = RECT { left: rect.left, top: y_off, right: rect.right, bottom: y_off + 25 };
-            draw_ui_text(hdc, &mil_info, &mut mi_rect, DT_LEFT | DT_SINGLELINE);
+            let mut mi = RECT { left: m_rect.left + 24, top: m_rect.top + 55, right: m_rect.right - 24, bottom: m_rect.top + 80 };
+            let mil_info = format!("Poder Bélico Total: {:.0} | Divisiones Activas: {}", state.military_power, state.armies.len());
+            draw_ui_text(hdc, &mil_info, &mut mi, DT_LEFT | DT_SINGLELINE);
 
-            y_off += 30;
+            let mut y = m_rect.top + 90;
             SelectObject(hdc, font_body);
             SetTextColor(hdc, COLORREF(0x00E2E8F0));
             for army in &state.armies {
                 let def = get_unit_definition(army.unit_type);
-                let prov_name = state.provinces.get(army.province_id).map(|p| p.name.as_str()).unwrap_or("En marcha");
-                let army_str = format!(" 🛡️ {} — {} x{} (Poder de Combate: {}) en {}", army.name, def.name, army.count, army.combat_power(), prov_name);
-                let mut as_rect = RECT { left: rect.left + 10, top: y_off, right: rect.right, bottom: y_off + 22 };
-                draw_ui_text(hdc, &army_str, &mut as_rect, DT_LEFT | DT_SINGLELINE);
-                y_off += 25;
+                let prov_name = state.provinces.get(army.current_province_id).map(|p| p.name.as_str()).unwrap_or("En marcha");
+                let a_str = format!(" 🛡️ {} — {} x{} (HP: {:.0}/{:.0}, Poder: {}) en {}", army.name, def.name, army.count, army.hp, army.max_hp, army.combat_power(), prov_name);
+                let mut at = RECT { left: m_rect.left + 24, top: y, right: m_rect.right - 24, bottom: y + 25 };
+                draw_ui_text(hdc, &a_str, &mut at, DT_LEFT | DT_SINGLELINE);
+                y += 30;
             }
         }
     }
 
-    unsafe fn render_wonders_and_log(&self, hdc: HDC, rect: &RECT, state: &GameState, font_title: HFONT, font_body: HFONT, font_bold: HFONT) {
+    unsafe fn render_wonders_modal(&self, hdc: HDC, width: i32, height: i32, state: &GameState, font_title: HFONT, font_body: HFONT, font_bold: HFONT) {
         unsafe {
+            let m_rect = RECT { left: (width - 700) / 2, top: 100, right: (width + 700) / 2, bottom: height - 100 };
+            let bg_brush = CreateSolidBrush(COLORREF(0x00111827));
+            FillRect(hdc, &m_rect, bg_brush);
+            let _ = DeleteObject(bg_brush);
+
             SelectObject(hdc, font_title);
             SetTextColor(hdc, COLORREF(0x0000F0FF));
-            let mut t_rect = RECT { left: rect.left, top: rect.top, right: rect.right, bottom: rect.top + 30 };
-            draw_ui_text(hdc, "🏛️ Grandes Maravillas Históricas y Crónica del Imperio", &mut t_rect, DT_LEFT | DT_SINGLELINE);
+            let mut tt = RECT { left: m_rect.left + 24, top: m_rect.top + 20, right: m_rect.right - 24, bottom: m_rect.top + 45 };
+            draw_ui_text(hdc, "🏛️ GRANDES MARAVILLAS & CRÓNICA HISTÓRICA", &mut tt, DT_LEFT | DT_SINGLELINE);
 
-            let mut y_off = rect.top + 45;
+            let mut y = m_rect.top + 60;
             SelectObject(hdc, font_bold);
             SetTextColor(hdc, COLORREF(0x00FBBF24));
-            let mut wh_rect = RECT { left: rect.left, top: y_off, right: rect.right, bottom: y_off + 25 };
-            draw_ui_text(hdc, "Maravillas Emblemáticas de las 15 Edades:", &mut wh_rect, DT_LEFT | DT_SINGLELINE);
+            let mut wh = RECT { left: m_rect.left + 24, top: y, right: m_rect.right - 24, bottom: y + 25 };
+            draw_ui_text(hdc, "Maravillas Emblemáticas de las 15 Edades:", &mut wh, DT_LEFT | DT_SINGLELINE);
 
-            y_off += 25;
+            y += 30;
             SelectObject(hdc, font_body);
             SetTextColor(hdc, COLORREF(0x00FFFFFF));
-
-            for wonder in &state.wonders {
+            for wonder in state.wonders.iter().take(6) {
                 let status = if wonder.is_completed { "✨ COMPLETADA" } else { "🔨 EN CONSTRUCCIÓN" };
                 let w_str = format!(" • [{}] {} — Progreso: {:.1}% ({})", wonder.era.short_name(), wonder.name, wonder.progress, status);
-                let mut ws_rect = RECT { left: rect.left + 15, top: y_off, right: rect.right, bottom: y_off + 20 };
-                draw_ui_text(hdc, &w_str, &mut ws_rect, DT_LEFT | DT_SINGLELINE);
-                y_off += 20;
-                if y_off > rect.bottom - 120 { break; }
+                let mut wt = RECT { left: m_rect.left + 35, top: y, right: m_rect.right - 35, bottom: y + 20 };
+                draw_ui_text(hdc, &w_str, &mut wt, DT_LEFT | DT_SINGLELINE);
+                y += 24;
             }
 
-            y_off += 15;
+            y += 20;
             SelectObject(hdc, font_bold);
             SetTextColor(hdc, COLORREF(0x0038BDF8));
-            let mut lh_rect = RECT { left: rect.left, top: y_off, right: rect.right, bottom: y_off + 25 };
-            draw_ui_text(hdc, "Bitácora de Eventos Recientes:", &mut lh_rect, DT_LEFT | DT_SINGLELINE);
+            let mut lh = RECT { left: m_rect.left + 24, top: y, right: m_rect.right - 24, bottom: y + 25 };
+            draw_ui_text(hdc, "Bitácora de Eventos Recientes:", &mut lh, DT_LEFT | DT_SINGLELINE);
 
-            y_off += 25;
+            y += 28;
             SelectObject(hdc, font_body);
             SetTextColor(hdc, COLORREF(0x0094A3B8));
-            for msg in state.event_log.iter().rev() {
+            for msg in state.event_log.iter().rev().take(6) {
                 let log_str = format!(" • {}", msg);
-                let mut ls_rect = RECT { left: rect.left + 15, top: y_off, right: rect.right, bottom: y_off + 20 };
-                draw_ui_text(hdc, &log_str, &mut ls_rect, DT_LEFT | DT_SINGLELINE);
-                y_off += 20;
-                if y_off > rect.bottom - 20 { break; }
+                let mut lt = RECT { left: m_rect.left + 35, top: y, right: m_rect.right - 35, bottom: y + 20 };
+                draw_ui_text(hdc, &log_str, &mut lt, DT_LEFT | DT_SINGLELINE);
+                y += 22;
             }
         }
     }
