@@ -9,7 +9,6 @@ use windows::{
 
 use crate::engine::state::GameState;
 use crate::engine::setup::{CivilizationChoice, LeaderTrait, GameSpeed};
-use crate::engine::buildings::BuildingType;
 use crate::renderer::{DioramaRenderer, TacticalRenderer, TacticalTab, MenuRenderer, MenuScreen};
 
 pub const APP_HEIGHT: i32 = 52;
@@ -346,16 +345,18 @@ pub unsafe extern "system" fn wnd_proc(
                                     }
                                 }
                             } else if ctx.tactical.active_tab == TacticalTab::CityManager {
-                                // Construir edificios
-                                if y >= 150 {
-                                    let b_idx = ((y - 150) / 44) as usize;
-                                    let available = [
-                                        BuildingType::Hearth, BuildingType::GrainPit, BuildingType::StoneQuarry,
-                                        BuildingType::ShamanHut, BuildingType::MegalithCircle, BuildingType::BronzeForge,
-                                        BuildingType::Forum, BuildingType::Watermill,
+                                // Construir distritos regionales D4X
+                                if y >= 140 {
+                                    let d_idx = ((y - 140) / 50) as usize;
+                                    let districts = [
+                                        crate::engine::state::RegionalDistrict::WaterCatchment,
+                                        crate::engine::state::RegionalDistrict::PlastacreteMine,
+                                        crate::engine::state::RegionalDistrict::TradingPost,
+                                        crate::engine::state::RegionalDistrict::MilitaryPost,
+                                        crate::engine::state::RegionalDistrict::ResearchOutpost,
                                     ];
-                                    if let Some(b_type) = available.get(b_idx) {
-                                        let _ = ctx.state.start_building_construction(ctx.state.selected_city, *b_type);
+                                    if let Some(d_type) = districts.get(d_idx) {
+                                        let _ = ctx.state.build_district_in_province(ctx.state.selected_province, *d_type);
                                     }
                                 }
                             } else if ctx.tactical.active_tab == TacticalTab::TechTree {
